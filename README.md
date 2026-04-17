@@ -39,6 +39,23 @@ Luego abre [http://localhost:3000](http://localhost:3000) en tu navegador.
 
 ---
 
+## 🌐 Despliegue en Vercel
+
+```bash
+# 1. Login en Vercel
+vercel login
+
+# 2. Desplegar (desde el directorio del proyecto)
+vercel
+
+# 3. Para producción
+vercel --prod
+```
+
+O conecta directamente desde [vercel.com](https://vercel.com) vinculando tu repositorio de GitHub.
+
+---
+
 ## 📖 Cómo jugar
 
 1. **Lee la historia** del nivel actual
@@ -64,7 +81,7 @@ js-pixel-adventure/
 ├── app/
 │   ├── page.js          # Página principal del juego
 │   ├── layout.js        # Layout de Next.js
-│   └── globals.css     # Estilos pixelart
+│   └── globals.css     # Estilos futuristas
 ├── components/
 │   ├── GameCanvas.js   # Renderizado del mapa/personaje
 │   ├── CodeEditor.js   # Editor de código
@@ -72,9 +89,11 @@ js-pixel-adventure/
 ├── data/
 │   └── levels.js       # Definición de niveles
 ├── utils/
-│   └── evaluator.js   # Motor de ejecución seguro
+│   ├── evaluator.js    # Motor de ejecución
+│   └── sandbox.js      # Sandbox seguro
 ├── public/
 │   └── favicon.svg     # Icono del juego
+├── vercel.json         # Configuración de Vercel
 └── package.json
 ```
 
@@ -120,12 +139,14 @@ El progreso se guarda automáticamente en **localStorage**:
 
 ## 🎨 Diseño
 
-El juego usa un estilo **pixelart retro** implementado completamente con CSS:
+El juego usa un estilo **futurista formal** con estética dark tech:
 
-- Colores oscuros inspirados en juegos de NES/SNES
-- Tipografía monoespaciada
-- Bordes pixel-art
-- Animaciones simples (caminata, pulso, etc.)
+- Paleta dark tech con neón cyan/purple
+- Tipografía: Orbitron + Rajdhani + JetBrains Mono
+- Grid pattern de fondo
+- Personaje con forma de diamante con glow neón
+- Cards con glassmorphism sutil
+- Animaciones de glow y pulse
 
 ---
 
