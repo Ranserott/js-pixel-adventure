@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { levels, getLevelById, getNextLevel, getPrevLevel } from '../data/levels';
 import GameCanvas from '../components/GameCanvas';
 import CodeEditor from '../components/CodeEditor';
-import { runCode, analyzeCode, getFriendlyError } from '../utils/evaluator';
+import { runCode, analyzeCodeStructure, getFriendlyError, getLevelHint } from '../utils/evaluator';
 
 /**
  * JS Pixel Adventure - Juego educativo de JavaScript
@@ -131,7 +131,22 @@ export default function Home() {
     setTimeout(() => {
       const result = runCode(code, currentLevel, onProgress);
       
-      if (result.success && result.validation.isValid) {
+      // Primero verificar si hay errores de sintaxis
+      if (!result.success && result.error) {
+        playSound('error');
+        setError(getFriendlyError(result.error));
+        return;
+      }
+      
+      // Verificar análisis del código (estructura)
+      const analysis = analyzeCodeStructure(code, currentLevel);
+      const codeStructureValid = analysis.issues.length === 0;
+      
+      // Verificar resultado (posición, etc)
+      const resultValid = result.validation.isValid;
+      
+      // Ambos deben ser válidos para pasar
+      if (result.success && codeStructureValid && resultValid) {
         // ¡Nivel completado!
         playSound('success');
         
@@ -145,10 +160,14 @@ export default function Home() {
         // Error en el código
         playSound('error');
         
-        if (result.error) {
+        // Combinar errores de validación y análisis
+        const allErrors = [...result.validation.errors, ...analysis.issues];
+        
+        if (allErrors.length > 0) {
+          setError(allErrors[0]);
+          setExecutionOutput(prev => [...prev, '❌ ' + allErrors[0]]);
+        } else if (result.error) {
           setError(getFriendlyError(result.error));
-        } else if (result.validation.errors.length > 0) {
-          setError(result.validation.errors[0]);
         }
         
         // Mostrar output parcial
@@ -474,7 +493,7 @@ export default function Home() {
             {/* Mostrar pista */}
             {showHint && (
               <div className="hint-box">
-                {currentLevel.hint}
+                💡 {getLevelHint(currentLevel)}
               </div>
             )}
             
