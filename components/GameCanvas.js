@@ -4,200 +4,150 @@ import { useEffect, useState, useRef } from 'react';
 import { themes } from '../data/levels';
 
 /**
- * GameCanvas - Renderizado futurista del juego
+ * GameCanvas - Renderizado del juego con gráficos mejorados
  */
 export default function GameCanvas({ level, currentPosition, isMoving, lastCommand }) {
-  const [characterFrame, setCharacterFrame] = useState(0);
-  const [showEffect, setShowEffect] = useState(null);
+  const [frame, setFrame] = useState(0);
+  const [effect, setEffect] = useState(null);
   const canvasRef = useRef(null);
+  const animationRef = useRef(null);
 
-  const theme = level ? themes[level.theme] || themes.dungeon : themes.dungeon;
+  const theme = level ? themes[level.theme] || themes.forest : themes.forest;
 
-  // Animación del personaje
+  // Animación del bucle
   useEffect(() => {
     if (isMoving) {
-      const interval = setInterval(() => {
-        setCharacterFrame(frame => (frame + 1) % 4);
-      }, 120);
+      const interval = setInterval(() => setFrame(f => (f + 1) % 4), 150);
       return () => clearInterval(interval);
     } else {
-      setCharacterFrame(0);
+      setFrame(0);
     }
-  }, [isMoving, currentPosition]);
+  }, [isMoving]);
 
-  // Efecto al moverse
+  // Efecto de movimiento
   useEffect(() => {
-    if (currentPosition > 0) {
-      setShowEffect('trail');
-      setTimeout(() => setShowEffect(null), 600);
+    if (currentPosition > 0 && isMoving) {
+      setEffect('dust');
+      setTimeout(() => setEffect(null), 400);
     }
-  }, [currentPosition]);
+  }, [currentPosition, isMoving]);
 
   // Efecto de victoria
   useEffect(() => {
-    if (isMoving === false && currentPosition === level?.goalPosition && currentPosition > 0) {
-      setShowEffect('sparkle');
-      setTimeout(() => setShowEffect(null), 1200);
+    if (!isMoving && currentPosition === level?.goalPosition && currentPosition > 0) {
+      setEffect('victory');
+      setTimeout(() => setEffect(null), 1500);
     }
   }, [isMoving, currentPosition, level]);
 
-  // Renderizado futurista
+  // Renderizado principal
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !level) return;
 
     const ctx = canvas.getContext('2d');
-    const cellSize = 56;
-    const gridSize = level.gridSize;
+    const cellSize = 64;
+    const gridSize = Math.min(level.gridSize, 10);
     
-    canvas.width = gridSize * cellSize;
-    canvas.height = cellSize * 2;
+    canvas.width = gridSize * cellSize + 40;
+    canvas.height = cellSize * 2.5;
 
-    // Limpiar con gradiente de fondo
-    const bgGradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-    bgGradient.addColorStop(0, '#030811');
-    bgGradient.addColorStop(1, '#0a1628');
-    ctx.fillStyle = bgGradient;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // Fondo según tema
+    if (level.theme === 'forest') {
+      // Bosque con gradiente
+      const bgGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      bgGrad.addColorStop(0, '#0a1a0a');
+      bgGrad.addColorStop(0.5, '#0d2810');
+      bgGrad.addColorStop(1, '#1a3d1a');
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      // Árboles de fondo
+      for (let i = 0; i < gridSize; i += 2) {
+        drawTree(ctx, i * cellSize + cellSize/2 + 20, cellSize * 0.8, 0.4);
+      }
+    } else if (level.theme === 'magic') {
+      // Tema mágico con partículas
+      const bgGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      bgGrad.addColorStop(0, '#0a0a1a');
+      bgGrad.addColorStop(1, '#1a0a2e');
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      // Partículas flotantes
+      drawParticles(ctx, canvas.width, canvas.height);
+    } else {
+      // Default oscuro
+      ctx.fillStyle = '#0a0a15';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
 
-    // Grid lines futuristas
-    ctx.strokeStyle = 'rgba(0, 245, 255, 0.05)';
+    // Camino principal
+    const pathY = cellSize * 1.2;
+    const pathHeight = cellSize * 1.2;
+    
+    // Borde del camino
+    ctx.fillStyle = 'rgba(20, 80, 20, 0.5)';
+    ctx.fillRect(20, pathY - 4, gridSize * cellSize, pathHeight + 8);
+    
+    // Camino
+    const pathGrad = ctx.createLinearGradient(0, pathY, 0, pathY + pathHeight);
+    pathGrad.addColorStop(0, '#2d4a2d');
+    pathGrad.addColorStop(1, '#1a3d1a');
+    ctx.fillStyle = pathGrad;
+    ctx.fillRect(20, pathY, gridSize * cellSize, pathHeight);
+    
+    // Líneas del camino
+    ctx.strokeStyle = 'rgba(100, 180, 100, 0.2)';
     ctx.lineWidth = 1;
-    for (let i = 0; i <= gridSize; i++) {
+    for (let i = 1; i < gridSize; i++) {
       ctx.beginPath();
-      ctx.moveTo(i * cellSize, 0);
-      ctx.lineTo(i * cellSize, canvas.height);
+      ctx.moveTo(20 + i * cellSize, pathY);
+      ctx.lineTo(20 + i * cellSize, pathY + pathHeight);
       ctx.stroke();
     }
 
-    // Fila superior decorativa
-    for (let i = 0; i < gridSize; i++) {
-      const x = i * cellSize;
-      
-      // Fondo de celda
-      ctx.fillStyle = 'rgba(0, 245, 255, 0.02)';
-      ctx.fillRect(x + 1, 1, cellSize - 2, cellSize - 2);
-      
-      // Decoración en ciertas posiciones
-      if (i % 2 === 0 && i !== level.startPosition && i !== level.goalPosition) {
-        ctx.font = '20px serif';
-        ctx.globalAlpha = 0.3;
-        ctx.fillText(theme.decoration, x + 16, 32);
-        ctx.globalAlpha = 1;
-      }
-    }
+    // Posición inicio
+    ctx.fillStyle = '#4ade80';
+    ctx.font = 'bold 14px Orbitron, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('▶', 20 + level.startPosition * cellSize + cellSize/2, pathY + pathHeight + 20);
 
-    // Camino principal (fila inferior)
-    const pathY = cellSize;
-    for (let i = 0; i < gridSize; i++) {
-      const x = i * cellSize;
-      
-      // Camino con gradiente
-      const pathGradient = ctx.createLinearGradient(x, pathY, x, pathY + cellSize);
-      pathGradient.addColorStop(0, '#1a4d7c');
-      pathGradient.addColorStop(1, '#0f2847');
-      ctx.fillStyle = pathGradient;
-      ctx.fillRect(x + 2, pathY + 2, cellSize - 4, cellSize - 4);
-      
-      // Borde del camino
-      ctx.strokeStyle = 'rgba(0, 245, 255, 0.1)';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(x + 2, pathY + 2, cellSize - 4, cellSize - 4);
-    }
-
-    // Marcas de posición en el camino
-    for (let i = 0; i <= Math.max(level.goalPosition, currentPosition); i++) {
-      const x = i * cellSize;
-      ctx.font = '12px Orbitron, sans-serif';
-      ctx.fillStyle = 'rgba(0, 245, 255, 0.4)';
-      ctx.textAlign = 'center';
-      ctx.fillText(i.toString(), x + cellSize / 2, pathY + cellSize - 8);
-    }
-
-    // Punto de inicio
-    const startX = level.startPosition * cellSize;
-    ctx.font = '24px serif';
-    ctx.fillText('▶', startX + cellSize / 2, pathY + cellSize / 2 + 8);
-    
     // Meta
-    const goalX = level.goalPosition * cellSize;
-    ctx.font = '28px serif';
-    ctx.fillText('🔷', goalX + cellSize / 2, pathY + cellSize / 2 + 8);
+    const goalX = 20 + level.goalPosition * cellSize + cellSize/2;
+    ctx.fillStyle = '#fbbf24';
+    ctx.font = '24px serif';
+    ctx.fillText('⭐', goalX, pathY + pathHeight/2 + 8);
 
-    // Dibujar personaje animado
-    const charX = currentPosition * cellSize;
-    const charY = pathY;
-    const bobOffset = isMoving ? Math.sin(characterFrame * Math.PI / 2) * 3 : 0;
+    // Dibujar mago
+    const charX = 20 + currentPosition * cellSize + cellSize/2;
+    const charY = pathY + pathHeight/2;
     
-    // Glow del personaje
-    ctx.shadowColor = '#00f5ff';
-    ctx.shadowBlur = 15;
-    
-    // Cuerpo futurista (diamante/rombo)
-    ctx.fillStyle = '#00f5ff';
-    ctx.beginPath();
-    ctx.moveTo(charX + cellSize / 2, charY + 8 + bobOffset);
-    ctx.lineTo(charX + cellSize / 2 + 14, charY + cellSize / 2 + bobOffset);
-    ctx.lineTo(charX + cellSize / 2, charY + cellSize - 12 + bobOffset);
-    ctx.lineTo(charX + cellSize / 2 - 14, charY + cellSize / 2 + bobOffset);
-    ctx.closePath();
-    ctx.fill();
-    
-    // Centro del personaje
-    ctx.fillStyle = '#ffffff';
-    ctx.beginPath();
-    ctx.arc(charX + cellSize / 2, charY + cellSize / 2 + bobOffset, 6, 0, Math.PI * 2);
-    ctx.fill();
-    
-    // Ojos (dos puntos)
-    ctx.fillStyle = '#0a1628';
-    ctx.fillRect(charX + cellSize / 2 - 5, charY + cellSize / 2 - 3 + bobOffset, 3, 3);
-    ctx.fillRect(charX + cellSize / 2 + 2, charY + cellSize / 2 - 3 + bobOffset, 3, 3);
-    
-    ctx.shadowBlur = 0;
+    drawWizard(ctx, charX, charY, frame, isMoving, effect === 'victory');
 
-    // Efecto trail
-    if (showEffect === 'trail') {
-      for (let i = 0; i < 5; i++) {
-        const trailX = charX - (i * 8);
-        ctx.fillStyle = `rgba(0, 245, 255, ${0.3 - i * 0.06})`;
+    // Efecto de polvo
+    if (effect === 'dust') {
+      for (let i = 0; i < 6; i++) {
+        const dustX = charX - 10 + Math.random() * 20;
+        const dustY = charY + 25 + Math.random() * 10;
+        ctx.fillStyle = `rgba(150, 200, 150, ${0.6 - i * 0.1})`;
         ctx.beginPath();
-        ctx.arc(trailX + cellSize / 2, charY + cellSize / 2, 4 - i * 0.5, 0, Math.PI * 2);
+        ctx.arc(dustX, dustY, 3 - i * 0.4, 0, Math.PI * 2);
         ctx.fill();
       }
     }
 
-    // Efecto de victoria
-    if (showEffect === 'sparkle') {
-      for (let i = 0; i < 12; i++) {
-        const angle = (i / 12) * Math.PI * 2;
-        const radius = 35 + Math.sin(Date.now() / 100) * 5;
-        const x = charX + cellSize / 2 + Math.cos(angle) * radius;
-        const y = charY + cellSize / 2 + Math.sin(angle) * radius;
-        
-        ctx.fillStyle = '#00f5ff';
-        ctx.font = '16px serif';
-        ctx.fillText('✦', x - 8, y + 6);
-      }
+    // Línea de progreso
+    if (currentPosition > 0) {
+      ctx.strokeStyle = 'rgba(74, 222, 128, 0.5)';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(20 + cellSize/2, pathY + pathHeight + 35);
+      ctx.lineTo(charX, pathY + pathHeight + 35);
+      ctx.stroke();
     }
 
-    // Línea de progreso
-    ctx.strokeStyle = 'rgba(0, 245, 255, 0.3)';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(level.startPosition * cellSize + cellSize / 2, pathY + cellSize + 15);
-    ctx.lineTo(charX + cellSize / 2, pathY + cellSize + 15);
-    ctx.stroke();
-
-  }, [level, currentPosition, characterFrame, showEffect, theme]);
-
-  if (!level) {
-    return (
-      <div className="game-canvas loading">
-        <p>🎮 Cargando...</p>
-      </div>
-    );
-  }
+  }, [level, currentPosition, frame, effect, theme]);
 
   return (
     <div className="game-canvas">
@@ -251,4 +201,163 @@ export default function GameCanvas({ level, currentPosition, isMoving, lastComma
       )}
     </div>
   );
+}
+
+/**
+ * Dibuja un árbol
+ */
+function drawTree(ctx, x, y, scale) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(scale, scale);
+  
+  // Tronco
+  ctx.fillStyle = '#5d4037';
+  ctx.fillRect(-8, 0, 16, 50);
+  
+  // Hojas (triángulo)
+  ctx.fillStyle = '#2e7d32';
+  ctx.beginPath();
+  ctx.moveTo(0, -60);
+  ctx.lineTo(-35, 10);
+  ctx.lineTo(35, 10);
+  ctx.closePath();
+  ctx.fill();
+  
+  ctx.fillStyle = '#388e3c';
+  ctx.beginPath();
+  ctx.moveTo(0, -40);
+  ctx.lineTo(-30, 0);
+  ctx.lineTo(30, 0);
+  ctx.closePath();
+  ctx.fill();
+  
+  ctx.restore();
+}
+
+/**
+ * Dibuja partículas flotantes
+ */
+function drawParticles(ctx, width, height) {
+  const time = Date.now() / 1000;
+  for (let i = 0; i < 15; i++) {
+    const x = (Math.sin(time + i * 0.7) * 0.5 + 0.5) * width;
+    const y = (Math.cos(time * 0.8 + i * 0.5) * 0.5 + 0.5) * height;
+    const size = 1 + Math.sin(time * 2 + i) * 0.5;
+    const alpha = 0.3 + Math.sin(time * 3 + i * 0.3) * 0.2;
+    
+    ctx.fillStyle = `rgba(139, 92, 246, ${alpha})`;
+    ctx.beginPath();
+    ctx.arc(x, y, size * 2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+/**
+ * Dibuja el mago con animaciones
+ */
+function drawWizard(ctx, x, y, frame, isMoving, isVictory) {
+  ctx.save();
+  ctx.translate(x, y);
+  
+  // Animación de flotación/bounce
+  const bounce = isMoving ? Math.sin(frame * Math.PI / 2) * 3 : Math.sin(Date.now() / 500) * 2;
+  ctx.translate(0, bounce);
+  
+  // Glow efecto
+  if (isVictory) {
+    ctx.shadowColor = '#fbbf24';
+    ctx.shadowBlur = 30;
+  } else {
+    ctx.shadowColor = '#8b5cf6';
+    ctx.shadowBlur = 15;
+  }
+  
+  // Cuerpo (túnica)
+  ctx.fillStyle = '#5b21b6';
+  ctx.beginPath();
+  ctx.moveTo(-15, 10);
+  ctx.lineTo(-20, 35);
+  ctx.lineTo(20, 35);
+  ctx.lineTo(15, 10);
+  ctx.closePath();
+  ctx.fill();
+  
+  // Detalle de la túnica
+  ctx.fillStyle = '#7c3aed';
+  ctx.beginPath();
+  ctx.moveTo(-10, 15);
+  ctx.lineTo(-12, 35);
+  ctx.lineTo(12, 35);
+  ctx.lineTo(10, 15);
+  ctx.closePath();
+  ctx.fill();
+  
+  // Cabeza
+  ctx.fillStyle = '#fcd34d';
+  ctx.beginPath();
+  ctx.arc(0, -5, 14, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Sombrero puntiagudo
+  ctx.fillStyle = '#5b21b6';
+  ctx.beginPath();
+  ctx.moveTo(-18, -5);
+  ctx.lineTo(0, -45);
+  ctx.lineTo(18, -5);
+  ctx.closePath();
+  ctx.fill();
+  
+  // Ala del sombrero
+  ctx.fillStyle = '#7c3aed';
+  ctx.beginPath();
+  ctx.arc(-5, -15, 3, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Ojos
+  ctx.fillStyle = '#1e1b4b';
+  ctx.beginPath();
+  ctx.arc(-5, -6, 2.5, 0, Math.PI * 2);
+  ctx.arc(5, -6, 2.5, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Sonrisa
+  ctx.strokeStyle = '#92400e';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(0, -2, 5, 0.2, Math.PI - 0.2);
+  ctx.stroke();
+  
+  // Varita
+  ctx.strokeStyle = '#78350f';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(18, 5);
+  ctx.lineTo(30, -15);
+  ctx.stroke();
+  
+  // Punta de varita brillante
+  ctx.fillStyle = '#fbbf24';
+  ctx.shadowColor = '#fbbf24';
+  ctx.shadowBlur = 10;
+  ctx.beginPath();
+  ctx.arc(32, -17, 4, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Efecto de victoria
+  if (isVictory) {
+    const time = Date.now() / 200;
+    for (let i = 0; i < 8; i++) {
+      const angle = (i / 8) * Math.PI * 2 + time;
+      const radius = 40 + Math.sin(time * 2) * 5;
+      const starX = Math.cos(angle) * radius;
+      const starY = Math.sin(angle) * radius - 10;
+      
+      ctx.fillStyle = '#fbbf24';
+      ctx.font = '12px serif';
+      ctx.fillText('✦', starX - 6, starY);
+    }
+  }
+  
+  ctx.restore();
 }

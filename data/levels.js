@@ -16,9 +16,9 @@ export const levels = [
     description: "Aprende a usar la función move() para mover al personaje",
     gridSize: 10,
     startPosition: 0,
-    character: "knight",
+    character: "wizard",
     goalPosition: 3,
-    theme: "dungeon",
+    theme: "forest",
     obstacles: []
   },
   {
@@ -33,7 +33,7 @@ export const levels = [
     description: "Aprende a crear y usar variables con let",
     gridSize: 10,
     startPosition: 0,
-    character: "knight",
+    character: "wizard",
     goalPosition: 5,
     theme: "forest"
   },
@@ -49,7 +49,7 @@ export const levels = [
     description: "Aprende la diferencia entre let y const",
     gridSize: 10,
     startPosition: 0,
-    character: "knight",
+    character: "wizard",
     goalPosition: 4,
     theme: "castle"
   },
@@ -65,7 +65,7 @@ export const levels = [
     description: "Aprende a usar condicionales if",
     gridSize: 10,
     startPosition: 0,
-    character: "knight",
+    character: "wizard",
     goalPosition: 3,
     theme: "bridge"
   },
@@ -81,7 +81,7 @@ export const levels = [
     description: "Aprende a usar el bucle for para repetir acciones",
     gridSize: 10,
     startPosition: 0,
-    character: "knight",
+    character: "wizard",
     goalPosition: 5,
     theme: "forest"
   },
@@ -97,7 +97,7 @@ export const levels = [
     description: "Aprende a mostrar mensajes con console.log",
     gridSize: 10,
     startPosition: 0,
-    character: "knight",
+    character: "wizard",
     goalPosition: 0,
     theme: "castle",
     requiresOutput: true
@@ -114,7 +114,7 @@ export const levels = [
     description: "Aprende el bucle while que se repite mientras la condición sea verdadera",
     gridSize: 10,
     startPosition: 0,
-    character: "knight",
+    character: "wizard",
     goalPosition: 4,
     theme: "castle"
   },
@@ -130,7 +130,7 @@ export const levels = [
     description: "Aprende a crear y usar funciones",
     gridSize: 10,
     startPosition: 0,
-    character: "knight",
+    character: "wizard",
     goalPosition: 2,
     theme: "magic"
   },
@@ -146,7 +146,7 @@ export const levels = [
     description: "Aprende a usar parámetros en funciones",
     gridSize: 10,
     startPosition: 0,
-    character: "knight",
+    character: "wizard",
     goalPosition: 3,
     theme: "magic"
   },
@@ -162,7 +162,7 @@ export const levels = [
     description: "Pon a prueba todo lo aprendido en un desafío final",
     gridSize: 10,
     startPosition: 0,
-    character: "knight",
+    character: "wizard",
     goalPosition: 4,
     theme: "boss"
   }
