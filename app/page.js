@@ -6,14 +6,12 @@ import GameCanvas from '../components/GameCanvas';
 import CodeEditor from '../components/CodeEditor';
 import { runCode, analyzeCodeStructure, getFriendlyError, getLevelHint } from '../utils/evaluator';
 
-/**
- * JS Pixel Adventure - Juego educativo de JavaScript
- */
 export default function Home() {
   // Estado del juego
-  const [gameState, setGameState] = useState('menu'); // menu, playing, won, complete
+  const [gameState, setGameState] = useState('menu');
   const [currentLevelId, setCurrentLevelId] = useState(1);
-  const [currentPosition, setCurrentPosition] = useState(0);
+  const [playerPos, setPlayerPos] = useState({ x: 0, y: 0 });
+  const [collectedStars, setCollectedStars] = useState([]);
   const [isMoving, setIsMoving] = useState(false);
   const [lastCommand, setLastCommand] = useState('');
   const [completedLevels, setCompletedLevels] = useState([]);
@@ -23,15 +21,13 @@ export default function Home() {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [showHint, setShowHint] = useState(false);
   
-  // Refs
   const outputRef = useRef(null);
   
-  // Nivel actual
   const currentLevel = getLevelById(currentLevelId);
   const nextLevel = getNextLevel(currentLevelId);
   const prevLevel = getPrevLevel(currentLevelId);
   
-  // Cargar progreso guardado
+  // Cargar progreso
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('js-pixel-adventure-progress');
@@ -39,9 +35,6 @@ export default function Home() {
         try {
           const data = JSON.parse(saved);
           setCompletedLevels(data.completedLevels || []);
-          if (data.currentLevelId && !data.completedLevels?.includes(data.currentLevelId)) {
-            setCurrentLevelId(data.currentLevelId);
-          }
         } catch (e) {
           console.error('Error loading progress:', e);
         }
@@ -93,11 +86,18 @@ export default function Home() {
         oscillator.start(audioCtx.currentTime);
         oscillator.stop(audioCtx.currentTime + 0.3);
       } else if (type === 'move') {
-        oscillator.frequency.setValueAtTime(300, audioCtx.currentTime);
+        oscillator.frequency.setValueAtTime(400, audioCtx.currentTime);
         gainNode.gain.setValueAtTime(0.05, audioCtx.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.08);
         oscillator.start(audioCtx.currentTime);
-        oscillator.stop(audioCtx.currentTime + 0.1);
+        oscillator.stop(audioCtx.currentTime + 0.08);
+      } else if (type === 'star') {
+        oscillator.frequency.setValueAtTime(880, audioCtx.currentTime);
+        oscillator.frequency.setValueAtTime(1100, audioCtx.currentTime + 0.1);
+        gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+        oscillator.start(audioCtx.currentTime);
+        oscillator.stop(audioCtx.currentTime + 0.2);
       }
     } catch (e) {
       // Audio not available
@@ -110,79 +110,82 @@ export default function Home() {
     
     setError(null);
     setExecutionOutput([]);
-    setLastCommand(code.length > 20 ? code.substring(0, 20) + '...' : code);
+    setLastCommand(code.length > 25 ? code.substring(0, 25) + '...' : code);
     
-    // Callback para mostrar progreso en tiempo real
+    // Callback para mostrar progreso
     const onProgress = (data) => {
       if (data.type === 'move') {
         setIsMoving(true);
+        playSound('move');
         setTimeout(() => {
-          setCurrentPosition(data.position);
+          setPlayerPos({ x: data.x, y: data.y });
           setIsMoving(false);
-          playSound('move');
-        }, 100);
+        }, 150);
+      }
+      if (data.type === 'collectStar') {
+        setCollectedStars(prev => [...prev, `${data.x},${data.y}`]);
+        playSound('star');
       }
       if (data.type === 'say' || data.type === 'console') {
         setExecutionOutput(prev => [...prev, data.text]);
       }
     };
     
-    // Ejecutar con delay para mostrar "procesando"
+    // Reiniciar posición al inicio del nivel
+    setPlayerPos({ x: currentLevel.startPosition.x, y: currentLevel.startPosition.y });
+    setCollectedStars([]);
+    
     setTimeout(() => {
       const result = runCode(code, currentLevel, onProgress);
       
-      // Primero verificar si hay errores de sintaxis
+      // Actualizar posición final
+      if (result.finalPosition) {
+        setPlayerPos(result.finalPosition);
+      }
+      if (result.starsCollected) {
+        setCollectedStars(result.starsCollected);
+      }
+      
+      // Análisis de código
+      const analysis = analyzeCodeStructure(code, currentLevel);
+      
       if (!result.success && result.error) {
         playSound('error');
         setError(getFriendlyError(result.error));
         return;
       }
       
-      // Verificar análisis del código (estructura)
-      const analysis = analyzeCodeStructure(code, currentLevel);
-      const codeStructureValid = analysis.issues.length === 0;
-      
-      // Verificar resultado (posición, etc)
+      const codeValid = analysis.issues.length === 0;
       const resultValid = result.validation.isValid;
       
-      // Ambos deben ser válidos para pasar
-      if (result.success && codeStructureValid && resultValid) {
-        // ¡Nivel completado!
+      if (codeValid && resultValid) {
         playSound('success');
         
         if (!completedLevels.includes(currentLevelId)) {
           setCompletedLevels([...completedLevels, currentLevelId]);
         }
         
-        setExecutionOutput(prev => [...prev, '🎉 ¡Código correcto! Nivel completado.']);
+        setExecutionOutput(prev => [...prev, '🎉 ¡Nivel completado!']);
         setGameState('won');
       } else {
-        // Error en el código
         playSound('error');
         
-        // Combinar errores de validación y análisis
         const allErrors = [...result.validation.errors, ...analysis.issues];
         
         if (allErrors.length > 0) {
           setError(allErrors[0]);
           setExecutionOutput(prev => [...prev, '❌ ' + allErrors[0]]);
-        } else if (result.error) {
-          setError(getFriendlyError(result.error));
-        }
-        
-        // Mostrar output parcial
-        if (result.consoleOutput && result.consoleOutput.length > 0) {
-          setExecutionOutput(prev => [...prev, ...result.consoleOutput]);
         }
       }
     }, 300);
   }, [currentLevel, gameState, currentLevelId, completedLevels, playSound]);
 
-  // Ir al siguiente nivel
+  // Siguiente nivel
   const handleNextLevel = useCallback(() => {
     if (nextLevel) {
       setCurrentLevelId(nextLevel.id);
-      setCurrentPosition(nextLevel.startPosition);
+      setPlayerPos({ x: nextLevel.startPosition.x, y: nextLevel.startPosition.y });
+      setCollectedStars([]);
       setGameState('playing');
       setExecutionOutput([]);
       setError(null);
@@ -192,11 +195,12 @@ export default function Home() {
     }
   }, [nextLevel]);
 
-  // Ir al nivel anterior
+  // Nivel anterior
   const handlePrevLevel = useCallback(() => {
     if (prevLevel) {
       setCurrentLevelId(prevLevel.id);
-      setCurrentPosition(prevLevel.startPosition);
+      setPlayerPos({ x: prevLevel.startPosition.x, y: prevLevel.startPosition.y });
+      setCollectedStars([]);
       setGameState('playing');
       setExecutionOutput([]);
       setError(null);
@@ -204,9 +208,10 @@ export default function Home() {
     }
   }, [prevLevel]);
 
-  // Reiniciar nivel actual
+  // Reiniciar nivel
   const handleRestartLevel = useCallback(() => {
-    setCurrentPosition(currentLevel.startPosition);
+    setPlayerPos({ x: currentLevel.startPosition.x, y: currentLevel.startPosition.y });
+    setCollectedStars([]);
     setExecutionOutput([]);
     setError(null);
     setShowSolution(false);
@@ -217,17 +222,10 @@ export default function Home() {
   const handleShowSolution = useCallback(() => {
     setShowSolution(true);
     setError(null);
-    setExecutionOutput([`📝 Solución del nivel ${currentLevel.id}:`]);
+    setExecutionOutput([`📝 Solución:`]);
   }, [currentLevel]);
 
-  // Verificar nivel anterior
   const canGoPrev = prevLevel && completedLevels.includes(prevLevel.id);
-  
-  // Análisis de código para pistas
-  const handleHintRequest = useCallback(() => {
-    setShowHint(true);
-    setTimeout(() => setShowHint(false), 5000);
-  }, []);
 
   // ═══════════════════════════════════════════════════════════
   // PANTALLA DE MENÚ
@@ -237,10 +235,10 @@ export default function Home() {
       <div className="game-container menu-screen">
         <div className="menu-card">
           <h1 className="game-title">
-            <span className="title-icon">⚔️</span>
+            <span className="title-icon">🧙‍♂️</span>
             JS Pixel Adventure
           </h1>
-          <p className="game-subtitle">Aprende JavaScript jugando</p>
+          <p className="game-subtitle">Aprende JavaScript en un mundo 2D</p>
           
           <div className="menu-character">
             <div className="character-preview">
@@ -252,11 +250,12 @@ export default function Home() {
           <div className="menu-info">
             <h2>¿Qué aprenderás?</h2>
             <ul className="concept-list">
-              <li>⚔️ Función move()</li>
+              <li>⬆️⬇️⬅️➡️ Mover en 4 direcciones</li>
               <li>📦 Variables (let, const)</li>
               <li>🔀 Condicionales (if)</li>
               <li>🔁 Bucles (for, while)</li>
-              <li>✨ Funciones</li>
+              <li>✨ Funciones y parámetros</li>
+              <li>⭐ Recolectar estrellas</li>
             </ul>
           </div>
           
@@ -266,7 +265,6 @@ export default function Home() {
           
           {completedLevels.length > 0 && (
             <button className="continue-btn" onClick={() => {
-              // Encontrar último nivel completado o siguiente
               const lastCompleted = Math.max(...completedLevels);
               const nextToPlay = Math.min(lastCompleted + 1, levels.length);
               setCurrentLevelId(nextToPlay);
@@ -277,7 +275,7 @@ export default function Home() {
           )}
           
           <p className="menu-footer">
-            Progreso guardado: {completedLevels.length}/{levels.length} niveles
+            Progreso: {completedLevels.length}/{levels.length} niveles
           </p>
         </div>
       </div>
@@ -285,7 +283,7 @@ export default function Home() {
   }
 
   // ═══════════════════════════════════════════════════════════
-  // PANTALLA DE NIVEL COMPLETADO
+  // PANTALLA DE VICTORIA
   // ═══════════════════════════════════════════════════════════
   if (gameState === 'won') {
     return (
@@ -296,7 +294,7 @@ export default function Home() {
           <p className="victory-level">Nivel {currentLevel.id}: {currentLevel.name}</p>
           
           <div className="concept-learned">
-            <span className="concept-label">📚 Concepto aprendido:</span>
+            <span className="concept-label">📚 Concepto:</span>
             <span className="concept-value">{currentLevel.concept}</span>
           </div>
           
@@ -305,32 +303,22 @@ export default function Home() {
               <span className="stat-value">{completedLevels.length}</span>
               <span className="stat-label">Niveles completados</span>
             </div>
-            <div className="stat">
-              <span className="stat-value">{levels.length - completedLevels.length}</span>
-              <span className="stat-label">Por completar</span>
-            </div>
           </div>
           
           <div className="victory-actions">
             {nextLevel ? (
               <button className="next-btn" onClick={handleNextLevel}>
-                Siguiente Nivel: {nextLevel.name} →
+                Siguiente: {nextLevel.name} →
               </button>
             ) : (
               <button className="complete-btn" onClick={() => setGameState('complete')}>
-                🏆 Ver Resultados Finales
+                🏆 Ver Resultados
               </button>
             )}
             
             <div className="secondary-actions">
-              <button className="retry-btn" onClick={handleRestartLevel}>
-                🔄 Repetir Nivel
-              </button>
-              {canGoPrev && (
-                <button className="prev-btn" onClick={handlePrevLevel}>
-                  ← Nivel Anterior
-                </button>
-              )}
+              <button className="retry-btn" onClick={handleRestartLevel}>🔄 Repetir</button>
+              {canGoPrev && <button className="prev-btn" onClick={handlePrevLevel}>← Anterior</button>}
             </div>
           </div>
         </div>
@@ -339,7 +327,7 @@ export default function Home() {
   }
 
   // ═══════════════════════════════════════════════════════════
-  // PANTALLA DE JUEGO COMPLETADO
+  // PANTALLA COMPLETA
   // ═══════════════════════════════════════════════════════════
   if (gameState === 'complete') {
     return (
@@ -348,25 +336,9 @@ export default function Home() {
           <div className="trophy">🏆</div>
           <h1>¡Felicidades!</h1>
           <p className="complete-message">
-            Has completado todos los niveles del juego.
-            <br />
-            ¡Eres un verdadero programador!
+            Has completado todos los niveles.<br/>
+            ¡Eres un programador!
           </p>
-          
-          <div className="final-stats">
-            <h2>Estadísticas Finales</h2>
-            <ul>
-              <li>✅ {completedLevels.length} de {levels.length} niveles completados</li>
-              <li>📚 Conceptos dominados:</li>
-              <ul className="concepts-list">
-                {levels.map(l => (
-                  <li key={l.id} className={completedLevels.includes(l.id) ? 'done' : ''}>
-                    {completedLevels.includes(l.id) ? '✓' : '○'} {l.concept}
-                  </li>
-                ))}
-              </ul>
-            </ul>
-          </div>
           
           <div className="complete-actions">
             <button className="restart-btn" onClick={() => {
@@ -377,7 +349,7 @@ export default function Home() {
               🔄 Jugar de Nuevo
             </button>
             <button className="menu-btn" onClick={() => setGameState('menu')}>
-              🏠 Volver al Menú
+              🏠 Menú
             </button>
           </div>
         </div>
@@ -386,17 +358,15 @@ export default function Home() {
   }
 
   // ═══════════════════════════════════════════════════════════
-  // PANTALLA PRINCIPAL DE JUEGO
+  // PANTALLA DE JUEGO
   // ═══════════════════════════════════════════════════════════
   return (
     <div className="game-container playing">
       {/* Header */}
       <header className="game-header">
         <div className="header-left">
-          <button className="back-btn" onClick={() => setGameState('menu')}>
-            🏠
-          </button>
-          <h1>⚔️ JS Pixel Adventure</h1>
+          <button className="back-btn" onClick={() => setGameState('menu')}>🏠</button>
+          <h1>🧙‍♂️ JS Pixel Adventure</h1>
         </div>
         
         <div className="header-center">
@@ -408,15 +378,10 @@ export default function Home() {
         </div>
         
         <div className="header-right">
-          <button 
-            className={`sound-btn ${soundEnabled ? '' : 'muted'}`}
-            onClick={() => setSoundEnabled(!soundEnabled)}
-          >
+          <button className={`sound-btn ${soundEnabled ? '' : 'muted'}`} onClick={() => setSoundEnabled(!soundEnabled)}>
             {soundEnabled ? '🔊' : '🔇'}
           </button>
-          <button className="reset-btn" onClick={handleRestartLevel}>
-            🔄
-          </button>
+          <button className="reset-btn" onClick={handleRestartLevel}>🔄</button>
         </div>
       </header>
 
@@ -428,14 +393,13 @@ export default function Home() {
               key={l.id}
               className={`progress-node ${completedLevels.includes(l.id) ? 'completed' : ''} ${l.id === currentLevelId ? 'current' : ''}`}
               onClick={() => {
-                if (completedLevels.includes(l.id) || l.id === 1 || completedLevels.includes(l.id - 1)) {
-                  setCurrentLevelId(l.id);
-                  setCurrentPosition(l.startPosition);
-                  setExecutionOutput([]);
-                  setError(null);
-                  setShowSolution(false);
-                  setGameState('playing');
-                }
+                setCurrentLevelId(l.id);
+                setPlayerPos({ x: l.startPosition.x, y: l.startPosition.y });
+                setCollectedStars([]);
+                setExecutionOutput([]);
+                setError(null);
+                setShowSolution(false);
+                setGameState('playing');
               }}
             >
               {completedLevels.includes(l.id) ? '✓' : l.id}
@@ -444,11 +408,10 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Contenido principal */}
+      {/* Contenido */}
       <main className="game-main">
         {/* Panel izquierdo */}
         <div className="left-panel">
-          {/* Info del nivel */}
           <div className="level-info-card">
             <h2 className="level-title">{currentLevel.name}</h2>
             <p className="level-story">{currentLevel.story}</p>
@@ -460,10 +423,10 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Lienzo del juego */}
           <GameCanvas 
             level={currentLevel}
-            currentPosition={currentPosition}
+            playerPos={playerPos}
+            collectedStars={collectedStars}
             isMoving={isMoving}
             lastCommand={lastCommand}
           />
@@ -471,33 +434,24 @@ export default function Home() {
 
         {/* Panel derecho */}
         <div className="right-panel">
-          {/* Editor de código */}
           <CodeEditor
             onRunCode={handleRunCode}
             isRunning={isMoving}
             levelHint={currentLevel.hint}
-            onShowHint={handleHintRequest}
           />
 
-          {/* Output y errores */}
           <div className="output-section">
             <div className="output-header">
               <h3>📋 Resultado</h3>
-              {currentLevel.hint && (
-                <button className="hint-btn" onClick={handleHintRequest}>
-                  💡 Pista
-                </button>
-              )}
+              <button className="hint-btn" onClick={() => setShowHint(!showHint)}>💡</button>
             </div>
             
-            {/* Mostrar pista */}
             {showHint && (
               <div className="hint-box">
                 💡 {getLevelHint(currentLevel)}
               </div>
             )}
             
-            {/* Mostrar solución */}
             {showSolution && (
               <div className="solution-box">
                 <h4>📝 Solución:</h4>
@@ -505,18 +459,16 @@ export default function Home() {
               </div>
             )}
             
-            {/* Error */}
             {error && (
               <div className="error-box">
                 {error}
               </div>
             )}
             
-            {/* Output del código */}
             <div className="output-box" ref={outputRef}>
-              {executionOutput.length === 0 && !error && !showSolution ? (
+              {executionOutput.length === 0 && !error ? (
                 <p className="output-placeholder">
-                  Ejecuta tu código para ver el resultado aquí...
+                  Ejecuta tu código para ver el resultado...
                 </p>
               ) : (
                 executionOutput.map((line, i) => (
@@ -526,24 +478,15 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Botones de ayuda */}
           <div className="help-section">
-            <button 
-              className="help-btn solution"
-              onClick={handleShowSolution}
-              disabled={showSolution}
-            >
-              👁️ Ver Solución
+            <button className="help-btn solution" onClick={handleShowSolution} disabled={showSolution}>
+              👁️ Solución
             </button>
-            <button 
-              className="help-btn"
-              onClick={handleRestartLevel}
-            >
+            <button className="help-btn" onClick={handleRestartLevel}>
               🔄 Reiniciar
             </button>
           </div>
 
-          {/* Navegación entre niveles */}
           <div className="level-nav">
             {canGoPrev && (
               <button className="nav-btn prev" onClick={handlePrevLevel}>
