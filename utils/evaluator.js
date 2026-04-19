@@ -1,5 +1,5 @@
 /**
- * Evaluador de código JavaScript - Versión Mejorada
+ * Evaluador de código JavaScript - Simplificado v2
  */
 
 const DANGEROUS_PATTERNS = [
@@ -22,42 +22,29 @@ const DANGEROUS_PATTERNS = [
   /prototype/,
 ];
 
-// Mensajes de error amigables en español
-const ERROR_MESSAGES = {
-  'not defined': (name) => `❌ La variable "${name}" no está definida. ¿Olvidaste declararla?`,
-  'is not a function': (name) => `❌ "${name}" no es una función.`,
-  'is not a constructor': `❌ Estás usando "new" con algo que no es constructor.`,
-  'Unexpected token': `❌ Error de sintaxis. Revisa paréntesis, llaves y punto y coma.`,
-  'Unexpected end': `❌ La expresión está incompleta.`,
-  'Illegal': `❌ Carácter ilegal encontrado.`,
-  'Too many': `❌ Demasiadas operaciones. ¿Hay un bucle infinito?`,
-  'Cannot read': (prop) => `❌ No se puede leer "${prop}".`,
-  'invalid assignment': `❌ Asignación inválida.`,
-  'undefined': (prop) => `❌ "${prop}" es undefined.`,
-  'null': (prop) => `❌ "${prop}" es null.`,
-};
-
 function getFriendlyError(error) {
   const errorStr = String(error);
   
-  for (const [key, handler] of Object.entries(ERROR_MESSAGES)) {
-    if (errorStr.includes(key)) {
-      if (typeof handler === 'function') {
-        const match = errorStr.match(/["']?(\w+)["']?/);
-        return handler(match ? match[1] : key);
-      }
-      return handler;
-    }
+  if (errorStr.includes('not defined')) {
+    const match = errorStr.match(/["']?(\w+)["']?/);
+    return `❌ La variable "${match ? match[1] : 'desconocida'}" no está definida.`;
+  }
+  if (errorStr.includes('is not a function')) {
+    return `❌ Eso no es una función.`;
+  }
+  if (errorStr.includes('Unexpected token')) {
+    return `❌ Error de sintaxis. Revisa paréntesis y puntos y coma.`;
+  }
+  if (errorStr.includes('Unexpected end')) {
+    return `❌ La expresión está incompleta.`;
   }
   
   return `❌ Error: ${errorStr}`;
 }
 
-// Analiza el código
 export function analyzeCodeStructure(code, level) {
   const issues = [];
   const warnings = [];
-  const suggestions = [];
   
   for (const pattern of DANGEROUS_PATTERNS) {
     if (pattern.test(code)) {
@@ -69,14 +56,9 @@ export function analyzeCodeStructure(code, level) {
     warnings.push('⚠️ Cuidado: while(true) puede crear un bucle infinito');
   }
   
-  if (code.match(/if\s*\([^)]*=[^=]/)) {
-    warnings.push('💡 ¿Usaste = en vez de === dentro del if?');
-  }
-  
-  return { issues, warnings, suggestions, isValid: issues.length === 0 };
+  return { issues, warnings, suggestions: [], isValid: issues.length === 0 };
 }
 
-// Ejecuta código y retorna variables
 export function runCode(userCode, level, onProgress) {
   if (!level?.challenge?.tests) {
     return { success: false, error: 'Nivel sin tests configurados', testResults: [] };
@@ -89,9 +71,10 @@ export function runCode(userCode, level, onProgress) {
   
   const logs = [];
   
-  const safeConsole = {
-    log: (...args) => {
-      const text = args.map(arg => {
+  // Logger simple
+  const logger = {
+    log: function() {
+      const text = Array.from(arguments).map(arg => {
         if (arg === undefined) return 'undefined';
         if (arg === null) return 'null';
         if (typeof arg === 'object') {
@@ -102,25 +85,38 @@ export function runCode(userCode, level, onProgress) {
       }).join(' ');
       logs.push(text);
       if (onProgress) onProgress({ type: 'console', text });
-    },
-    error: (...args) => logs.push('❌ ' + args.join(' ')),
-    warn: (...args) => logs.push('⚠️ ' + args.join(' ')),
-    info: (...args) => logs.push('ℹ️ ' + args.join(' '))
+    }
   };
   
   try {
-    // Crear contexto que ejecute el código y capture las variables
-    const contextCode = `
+    // Extraer nombres de variables del código
+    const declaredVars = getDeclaredVars(userCode);
+    
+    // Crear contexto que incluya console E injecte las variables declaradas
+    // El truco: envolvemos el código y retornamos las variables
+    const wrapperCode = `
       "use strict";
-      const console = arguments[0];
+      var __log = arguments[0];
+      var console = { log: __log.log.bind(__log) };
+      
+      // Las variables del usuario
       ${userCode}
-      ;
-      return { ${getDeclaredVars(userCode).join(', ')} };
+      
+      // Retornar un objeto con las variables
+      ;(function() {
+        var result = {};
+        var varList = ${JSON.stringify(declaredVars)};
+        varList.forEach(function(v) {
+          try { result[v] = eval(v); } catch(e) { result[v] = undefined; }
+        });
+        return result;
+      })();
     `;
     
-    const capturedVars = new Function('console', contextCode)(safeConsole);
+    const execFn = new Function(wrapperCode);
+    const capturedVars = execFn(logger);
     
-    // Ahora evaluar los tests con las variables capturadas
+    // Evaluar tests con las variables capturadas
     const testResults = evaluateTestsWithVars(capturedVars, level.challenge.tests);
     
     const allPassed = testResults.every(t => t.passed);
@@ -144,39 +140,38 @@ export function runCode(userCode, level, onProgress) {
   }
 }
 
-// Extrae los nombres de variables declaradas en el código
 function getDeclaredVars(code) {
   const vars = [];
   
-  // Buscar let, const, var declarations
-  const letMatch = code.matchAll(/(?:let|const|var)\s+(\w+)/g);
-  for (const match of letMatch) {
-    vars.push(match[1]);
+  // Buscar let, const, var
+  const declMatch = code.matchAll(/(?:let|const|var)\s+(\w+)/g);
+  for (const match of declMatch) {
+    if (!vars.includes(match[1])) vars.push(match[1]);
   }
   
   // Buscar function declarations
   const funcMatch = code.matchAll(/function\s+(\w+)/g);
   for (const match of funcMatch) {
-    vars.push(match[1]);
+    if (!vars.includes(match[1])) vars.push(match[1]);
   }
   
   return vars;
 }
 
-// Evalúa los tests con las variables capturadas
 function evaluateTestsWithVars(capturedVars, tests) {
   const results = [];
   
   for (const test of tests) {
     try {
-      // Crear una función que tenga acceso a las variables capturadas
+      const varNames = Object.keys(capturedVars);
       const testCode = `
         "use strict";
-        const { ${Object.keys(capturedVars).join(', ')} } = arguments[0];
+        ${varNames.map(v => `var ${v} = arguments[0]["${v}"];`).join(';')}
         return (${test.code});
       `;
       
-      const passed = new Function(testCode)(capturedVars);
+      const testFn = new Function(testCode);
+      const passed = testFn(capturedVars);
       
       results.push({
         code: test.code,
@@ -198,24 +193,18 @@ function evaluateTestsWithVars(capturedVars, tests) {
   return results;
 }
 
-// Hint progresivo
 export function getLevelHint(level, attemptCount = 0) {
   if (!level?.challenge?.hints) return 'Revisa la teoría y piensa en la solución.';
   
   const hints = level.challenge.hints;
   
-  if (attemptCount === 0) {
-    return hints[0];
-  } else if (attemptCount === 1) {
-    return hints.length > 1 ? hints[1] : hints[0];
-  } else if (attemptCount >= 2) {
-    return hints.length > 2 ? hints[2] : hints[hints.length - 1];
-  }
+  if (attemptCount === 0) return hints[0];
+  if (attemptCount === 1) return hints.length > 1 ? hints[1] : hints[0];
+  if (attemptCount >= 2) return hints.length > 2 ? hints[2] : hints[hints.length - 1];
   
   return hints[0];
 }
 
-// Mensaje motivacional
 const MOTIVATIONAL_MESSAGES = [
   '¡Sigue intentando, lo estás haciendo genial! 💪',
   '¡No te rindas! Cada error es una oportunidad de aprender 🚀',
