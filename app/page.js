@@ -180,6 +180,36 @@ export default function Home() {
     setCurrentLesson(null);
   };
 
+  const handleNextLesson = () => {
+    const currentModuleData = allModules[currentModule];
+    if (!currentModuleData) return;
+    
+    const lessons = currentModuleData.lessons;
+    const currentIndex = lessons.findIndex(l => l.id === currentLesson.id);
+    
+    // Buscar siguiente lección en el mismo módulo
+    if (currentIndex < lessons.length - 1) {
+      const nextLesson = lessons[currentIndex + 1];
+      goToLesson(nextLesson);
+    } else {
+      // Buscar en el siguiente módulo
+      const moduleKeys = Object.keys(allModules);
+      const currentModuleIndex = moduleKeys.indexOf(currentModule);
+      
+      if (currentModuleIndex < moduleKeys.length - 1) {
+        const nextModuleKey = moduleKeys[currentModuleIndex + 1];
+        setCurrentModule(nextModuleKey);
+        const nextModule = allModules[nextModuleKey];
+        if (nextModule && nextModule.lessons.length > 0) {
+          goToLesson(nextModule.lessons[0]);
+        }
+      } else {
+        // Ya completó todos los módulos
+        goHome();
+      }
+    }
+  };
+
   const resetProgress = () => {
     if (confirm('¿Seguro que quieres reiniciar todo tu progreso?')) {
       setCompletedLessons([]);
@@ -435,6 +465,23 @@ export default function Home() {
                   </div>
                 )}
               </div>
+
+              {/* Success - Next Challenge Button */}
+              {testResults.length > 0 && testResults.every(t => t.passed) && (
+                <div className="success-actions">
+                  <div className="success-message-box">
+                    <span className="success-icon-big">🎉</span>
+                    <h3>¡Desafío completado!</h3>
+                    <p>Excelente trabajo. ¿Listo para el siguiente?</p>
+                  </div>
+                  <button 
+                    className="next-challenge-btn"
+                    onClick={handleNextLesson}
+                  >
+                    🚀 Siguiente Desafío
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </main>
