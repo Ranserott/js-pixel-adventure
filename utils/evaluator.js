@@ -1,8 +1,76 @@
 /**
- * Motor de evaluación - Juego 2D con movimiento en 4 direcciones
+ * Evaluador de código JavaScript - Versión Desafíos
  */
 
-import { createSafeContext2D, executeCode2D } from './sandbox2d.js';
+// Código peligroso a detectar
+const DANGEROUS_PATTERNS = [
+  /eval\s*\(/i,
+  /Function\s*\(/i,
+  /setTimeout\s*\(/i,
+  /setInterval\s*\(/i,
+  /document\s*\./i,
+  /window\s*\./i,
+  /fetch\s*\(/i,
+  /XMLHttpRequest/i,
+  /import\s*\(/i,
+  /require\s*\(/i,
+  /process\s*\./i,
+  /global\s*\./i,
+  /location\s*\./i,
+  /\$_\w+/i,          // Variables PHP
+  /__proto__/,
+  /constructor/,
+  /prototype/,
+];
+
+const MAX_OPERATIONS = 10000;
+
+/**
+ * Obtiene mensajes de error amigables en español
+ */
+export function getFriendlyError(error) {
+  const errorStr = String(error);
+  
+  if (errorStr.includes('is not defined')) {
+    const varName = errorStr.match(/(\w+) is not defined/)?.[1] || 'una variable';
+    return `❌ "${varName}" no está definida. ¿Olvidaste declararla con let, const o function?`;
+  }
+  
+  if (errorStr.includes('is not a function')) {
+    const fnName = errorStr.match(/(\w+) is not a function/)?.[1] || 'la función';
+    return `❌ "${fnName}" no es una función. ¿Definiste la función correctamente?`;
+  }
+  
+  if (errorStr.includes('is not a constructor')) {
+    return `❌ Estás intentando usar "new" con algo que no es un constructor.`;
+  }
+  
+  if (errorStr.includes('Unexpected token')) {
+    return `❌ Hay un error de sintaxis. Revisa paréntesis, llaves o punto y coma.`;
+  }
+  
+  if (errorStr.includes('Unexpected end')) {
+    return `❌ La expresión está incompleta. Falta cerrar algo.`;
+  }
+  
+  if (errorStr.includes('Illegal')) {
+    return `❌ Carácter ilegal encontrado.`;
+  }
+  
+  if (errorStr.includes('Too many')) {
+    return `❌ Demasiadas operaciones. Posible bucle infinito.`;
+  }
+  
+  return `❌ Error: ${errorStr}`;
+}
+
+/**
+ * Hint específico por nivel
+ */
+export function getLevelHint(level) {
+  if (!level?.challenge?.hints) return 'Revisa la teoría y piensa en la solución.';
+  return level.challenge.hints[0];
+}
 
 /**
  * Analiza estructura del código
@@ -11,215 +79,244 @@ export function analyzeCodeStructure(code, level) {
   const issues = [];
   const warnings = [];
   
-  const cleanCode = code.trim();
-  
-  // Detectar patrones
-  const detected = {
-    // Variables
-    hasVariableLet: /\blet\s+\w+/.test(cleanCode),
-    hasVariableConst: /\bconst\s+\w+/.test(cleanCode),
-    hasVariableAssignment: /\w+\s*=\s*\d+/.test(cleanCode),
-    
-    // Control flow
-    hasForLoop: /\bfor\s*\(/.test(cleanCode),
-    hasWhileLoop: /\bwhile\s*\(/.test(cleanCode),
-    hasIfCondition: /\bif\s*\(/.test(cleanCode),
-    
-    // Funciones
-    hasFunctionDeclaration: /\bfunction\s+\w+\s*\(/.test(cleanCode),
-    hasFunctionCall: /\w+\s*\(\s*\)/.test(cleanCode),
-    
-    // Movimientos
-    hasMove: /\bmove\s*\(/.test(cleanCode),
-    hasMoveUp: /move\s*\(\s*["']up["']\s*\)/.test(cleanCode),
-    hasMoveDown: /move\s*\(\s*["']down["']\s*\)/.test(cleanCode),
-    hasMoveLeft: /move\s*\(\s*["']left["']\s*\)/.test(cleanCode),
-    hasMoveRight: /move\s*\(\s*["']right["']\s*\)/.test(cleanCode),
-    
-    // Outputs
-    hasConsoleLog: /console\.log\s*\(/.test(cleanCode),
-    hasSay: /\bsay\s*\(/.test(cleanCode),
-    
-    // Comparaciones
-    hasComparison: /[<>!=]=?|===?|!==/.test(cleanCode),
-  };
-  
-  // Validación por nivel
-  switch (level.id) {
-    case 1: // Tutorial - move simple
-      if (!detected.hasMove) {
-        issues.push('💡 Usa move("right") para moverte a la derecha');
-      }
-      // Verificar move(right) con el número correcto de pasos
-      const rightMatch = cleanCode.match(/move\s*\(\s*["']right["']\s*,\s*(\d+)\s*\)/);
-      if (!rightMatch) {
-        issues.push('💡 move("right", número) mueve a la derecha');
-      } else if (parseInt(rightMatch[1]) !== level.targetPosition.x) {
-        issues.push(`⚠️ Para este nivel necesitas moverte ${level.targetPosition.x} pasos a la derecha`);
-      }
-      break;
-      
-    case 2: // Variables let
-      if (!detected.hasVariableLet) {
-        issues.push('💡 Declara una variable con "let". Ejemplo: let pasos = 3;');
-      }
-      if (!detected.hasMoveRight) {
-        issues.push('💡 Usa move("right", pasos) para moverte');
-      }
-      break;
-      
-    case 3: // Variables const
-      if (!detected.hasVariableConst) {
-        issues.push('💡 Usa "const" para valores que no cambian');
-      }
-      if (!detected.hasMove) {
-        issues.push('💡 Mueve el mago con move("right", valor)');
-      }
-      break;
-      
-    case 4: // Condicional if
-      if (!detected.hasIfCondition) {
-        issues.push('💡 Usa "if" para verificar una condición');
-      }
-      if (!detected.hasComparison) {
-        issues.push('💡 Compara valores con >, <, ===, etc.');
-      }
-      break;
-      
-    case 5: // Bucle for
-      if (!detected.hasForLoop) {
-        issues.push('💡 Usa "for" para repetir movimientos');
-      }
-      if (detected.hasForLoop && !cleanCode.match(/for\s*\([^)]+\)\s*\{/)) {
-        issues.push('⚠️ El for necesita { }');
-      }
-      break;
-      
-    case 6: // console.log
-      if (!detected.hasConsoleLog) {
-        issues.push('💡 Usa console.log() para mostrar mensajes');
-      }
-      break;
-      
-    case 7: // Bucle while
-      if (!detected.hasWhileLoop) {
-        issues.push('💡 Usa "while" para repetir mientras la condición sea verdadera');
-      }
-      break;
-      
-    case 8: // Funciones
-      if (!detected.hasFunctionDeclaration) {
-        issues.push('💡 Crea una función con "function"');
-      }
-      if (!detected.hasFunctionCall) {
-        issues.push('💡 Llama la función después de crearla');
-      }
-      break;
-      
-    case 9: // Parámetros
-      if (!detected.hasFunctionDeclaration) {
-        issues.push('💡 Crea una función con parámetro');
-      }
-      break;
-      
-    case 10: // Combinación
-      const missing = [];
-      if (!detected.hasVariableLet && !detected.hasVariableConst) missing.push('variable');
-      if (!detected.hasFunctionDeclaration) missing.push('función');
-      if (!detected.hasForLoop && !detected.hasWhileLoop) missing.push('bucle');
-      if (missing.length > 0) {
-        issues.push(`💡 Combina: ${missing.join(', ')}`);
-      }
-      break;
-  }
-  
-  return { issues, warnings, detected };
-}
-
-/**
- * Ejecuta código en el contexto 2D
- */
-export function runCode(code, level, onProgress) {
-  const initialState = {
-    x: level.startPosition.x,
-    y: level.startPosition.y,
-    starsCollected: [],
-    moveCount: 0,
-    consoleOutput: []
-  };
-  
-  const { safeFunctions, safeConsole } = createSafeContext2D(initialState, level, onProgress);
-
-  // Ejecutar
-  const result = executeCode2D(code, safeFunctions, safeConsole);
-  
-  // Análisis de estructura
-  const analysis = analyzeCodeStructure(code, level);
-  
-  // Validar resultado
-  const resultErrors = [];
-  
-  // Verificar posición final
-  if (result.state.x !== level.targetPosition.x) {
-    resultErrors.push(`Posición X: ${result.state.x}. Debería ser: ${level.targetPosition.x}`);
-  }
-  if (result.state.y !== level.targetPosition.y) {
-    resultErrors.push(`Posición Y: ${result.state.y}. Debería ser: ${level.targetPosition.y}`);
-  }
-  
-  // Verificar estrellas recolectadas
-  if (level.stars && level.stars.length > 0) {
-    const requiredStars = level.stars.length;
-    const collected = result.state.starsCollected.length;
-    if (collected < requiredStars) {
-      resultErrors.push(`Estrellas: ${collected}/${requiredStars}. ¡Recolecta todas las estrellas!`);
+  // Detectar código peligroso
+  for (const pattern of DANGEROUS_PATTERNS) {
+    if (pattern.test(code)) {
+      issues.push(`Código no permitido: ${pattern}`);
     }
   }
   
-  return {
-    success: result.success,
-    error: result.error,
-    state: result.state,
-    validation: {
-      isValid: resultErrors.length === 0 && analysis.issues.length === 0,
-      errors: [...resultErrors, ...analysis.issues],
-      warnings: analysis.warnings
-    },
-    consoleOutput: result.state.consoleOutput,
-    finalPosition: { x: result.state.x, y: result.state.y },
-    starsCollected: result.state.starsCollected
-  };
-}
-
-export function getFriendlyError(errorMessage) {
-  const errors = {
-    'move() requires direction': '💡 move() necesita dirección: "up", "down", "left", "right"',
-    'move() requires a number': '💡 move() necesita un número de pasos',
-    'is not defined': '❓ Variable no definida',
-    'Unexpected end of input': '📝 Falta cerrar algo',
-    'Unexpected token': '📝 Error de sintaxis',
-  };
-  
-  for (const [pattern, msg] of Object.entries(errors)) {
-    if (errorMessage.includes(pattern)) return msg;
+  // Warnings útiles
+  if (code.includes('while(true)') || code.includes('while (true)')) {
+    warnings.push('⚠️ Posible bucle infinito con while(true)');
   }
   
-  if (errorMessage.includes('not defined')) return '❓ Algo no está definido';
-  return `❌ ${errorMessage.substring(0, 80)}`;
+  if ((code.match(/for\s*\(/g) || []).length > 5) {
+    warnings.push('⚠️ Muchos bucles for detectados');
+  }
+  
+  return { issues, warnings, isValid: issues.length === 0 };
 }
 
-export function getLevelHint(level) {
-  const hints = {
-    1: 'Mueve a la derecha: move("right", 3)',
-    2: 'Usa let para variable: let pasos = 3; move("right", pasos);',
-    3: 'Usa const: const pasos = 3; move("right", pasos);',
-    4: 'Usa if: if (x < 5) { move("right", 1); }',
-    5: 'Usa for: for(let i=0; i<3; i++){ move("right", 1); }',
-    6: 'Usa console.log("tu mensaje");',
-    7: 'Usa while: let i=0; while(i<3){ move("right", 1); i++; }',
-    8: 'Crea función: function avanzar(){ move("right", 1); } avanzar();',
-    9: 'Función con parámetro: function mover(p){ move("right", p); } mover(3);',
-    10: 'Combina todo lo aprendido'
+/**
+ * Ejecuta código en sandbox y retorna el estado final
+ */
+export function runCode(userCode, level, onProgress) {
+  if (!level?.challenge?.tests) {
+    return { success: false, error: 'Nivel sin tests configurados', variables: {} };
+  }
+  
+  // Validar código
+  const analysis = analyzeCodeStructure(userCode, level);
+  if (!analysis.isValid) {
+    return { success: false, error: analysis.issues[0], variables: {} };
+  }
+  
+  // Contexto seguro
+  const safeContext = createSafeContext();
+  
+  // Hook de progreso para debug
+  const log = (msg) => {
+    if (onProgress) onProgress({ type: 'console', text: msg });
   };
-  return hints[level.id] || level.hint;
+  
+  try {
+    // Crear función con el código del usuario
+    // Aseguramos que las variables declaradas estén disponibles
+    const wrappedCode = `
+      "use strict";
+      ${userCode}
+    `;
+    
+    // Ejecutar en contexto seguro
+    const fn = new Function(
+      'console',
+      ...safeContext.allowedVars,
+      wrappedCode
+    );
+    
+    // Valores iniciales
+    const initialValues = {
+      console: {
+        log: (...args) => log(args.map(String).join(' ')),
+        error: (...args) => log('ERROR: ' + args.join(' ')),
+        warn: (...args) => log('WARN: ' + args.join(' '))
+      },
+      // Variables predefinidas del challenge
+      ...safeContext.predefined
+    };
+    
+    // Ejecutar
+    fn(...Object.values(initialValues));
+    
+    // Recolectar variables del usuario
+    const userVars = {};
+    for (const varName of safeContext.allowedVars) {
+      try {
+        // Intentar leer la variable ejecutando el código de nuevo y extrayendo
+        const extractFn = new Function(
+          'console',
+          ...safeContext.allowedVars,
+          `${userCode}; return { ${safeContext.allowedVars.join(', ')} };`
+        );
+        const result = extractFn(...Object.values(initialValues));
+        if (result && result[varName] !== undefined) {
+          userVars[varName] = result[varName];
+        }
+      } catch {
+        // Variable no definida, continuar
+      }
+    }
+    
+    // Evaluar tests
+    const testResults = evaluateTests(userCode, level.challenge.tests, safeContext);
+    
+    return {
+      success: testResults.allPassed,
+      error: testResults.allPassed ? null : testResults.failedTests[0]?.description,
+      testResults: testResults.results,
+      variables: userVars
+    };
+    
+  } catch (error) {
+    return {
+      success: false,
+      error: getFriendlyError(error),
+      variables: {}
+    };
+  }
+}
+
+/**
+ * Crea contexto seguro para ejecución
+ */
+function createSafeContext() {
+  return {
+    allowedVars: [
+      // Variables comunes que el usuario puede definir
+      'nombre', 'edad', 'pais', 'ciudad', 'numero', 'resultado', 'suma',
+      'base', 'altura', 'area', 'lenguaje', 'version', 'esGenial',
+      'a', 'b', 'c', 'x', 'y', 'z', 'i', 'j', 'k', 'n', 'm',
+      'texto', 'saludo', 'tipo', 'valor', 'dia', 'mensaje',
+      'multiplicar', 'esPar', 'contador1', 'crearContador',
+      'numeros', 'longitud', 'libro', 'obj1', 'obj2', 'persona',
+      'frutas', 'notas', 'resultadoFinal', 'invertido', 'contador',
+      'productos', 'nombres', 'masLargo', 'sumaTotal', 'pares'
+    ],
+    predefined: {}
+  };
+}
+
+/**
+ * Evalúa los tests de un challenge
+ */
+function evaluateTests(userCode, tests, context) {
+  const results = [];
+  
+  for (const test of tests) {
+    try {
+      // Crear un entorno con el código del usuario + el test
+      const testCode = `
+        ${userCode}
+        return (${test.code});
+      `;
+      
+      // Preparar valores iniciales
+      const initialContext = { ...context.predefined };
+      
+      const testFn = new Function(
+        ...context.allowedVars,
+        testCode
+      );
+      
+      // Llamar con valores dummy que el código del usuario debería definir
+      const dummyValues = context.allowedVars.reduce((acc, v) => {
+        acc[v] = undefined;
+        return acc;
+      }, {});
+      
+      // Primero ejecutar el código del usuario
+      const execFn = new Function(
+        ...context.allowedVars,
+        userCode
+      );
+      execFn(...Object.values(dummyValues));
+      
+      // Ahora evaluar el test con los valores reales
+      // Para esto necesitamos un enfoque diferente
+      const fullCode = `
+        ${userCode}
+        ;
+        return (${test.code});
+      `;
+      
+      // Crear contexto con variables globales
+      const evalFn = new Function(
+        'return (function() { ' + userCode + '; return (' + test.code + '); })()'
+      );
+      
+      const passed = evalFn();
+      
+      results.push({
+        code: test.code,
+        description: test.description,
+        passed: Boolean(passed),
+        error: null
+      });
+      
+    } catch (error) {
+      results.push({
+        code: test.code,
+        description: test.description,
+        passed: false,
+        error: String(error)
+      });
+    }
+  }
+  
+  const allPassed = results.every(r => r.passed);
+  const failedTests = results.filter(r => !r.passed);
+  
+  return { results, allPassed, failedTests, passedCount: results.filter(r => r.passed).length };
+}
+
+/**
+ * Ejecuta código simple y retorna el resultado
+ */
+export function executeCode(code) {
+  const analysis = analyzeCodeStructure(code, {});
+  if (!analysis.isValid) {
+    return { success: false, error: analysis.issues[0], output: [] };
+  }
+  
+  const logs = [];
+  
+  try {
+    const fn = new Function('console', `
+      "use strict";
+      const __logs = [];
+      const console = {
+        log: (...args) => __logs.push(args.join(' ')),
+        error: (...args) => __logs.push('ERROR: ' + args.join(' ')),
+        warn: (...args) => __logs.push('WARN: ' + args.join(' '))
+      };
+      ${code}
+      return __logs;
+    `);
+    
+    const output = fn(console);
+    
+    return {
+      success: true,
+      output: output || [],
+      error: null
+    };
+    
+  } catch (error) {
+    return {
+      success: false,
+      output: logs,
+      error: getFriendlyError(error)
+    };
+  }
 }
