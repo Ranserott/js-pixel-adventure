@@ -1,5 +1,5 @@
 /**
- * Evaluador de código JavaScript - Versión Mejorada para Estudiantes
+ * Evaluador de código JavaScript - Versión Mejorada
  */
 
 const DANGEROUS_PATTERNS = [
@@ -24,36 +24,17 @@ const DANGEROUS_PATTERNS = [
 
 // Mensajes de error amigables en español
 const ERROR_MESSAGES = {
-  'not defined': (name) => `❌ "${name}" no está definido. ¿Olvidaste declararlo con let, const o var?`,
-  'is not a function': (name) => `❌ "${name}" no es una función. ¿Definiste la función correctamente?`,
-  'is not a constructor': `❌ Estás usando "new" con algo que no es un constructor.`,
-  'Unexpected token': `❌ Error de sintaxis. Revisa paréntesis (), llaves {}, corchetes [] y punto y coma ;`,
-  'Unexpected end': `❌ La expresión está incompleta. Probablemente falta cerrar algo.`,
-  'Illegal': `❌ Carácter ilegal encontrado. ¿Usaste algún símbolo no permitido?`,
+  'not defined': (name) => `❌ La variable "${name}" no está definida. ¿Olvidaste declararla?`,
+  'is not a function': (name) => `❌ "${name}" no es una función.`,
+  'is not a constructor': `❌ Estás usando "new" con algo que no es constructor.`,
+  'Unexpected token': `❌ Error de sintaxis. Revisa paréntesis, llaves y punto y coma.`,
+  'Unexpected end': `❌ La expresión está incompleta.`,
+  'Illegal': `❌ Carácter ilegal encontrado.`,
   'Too many': `❌ Demasiadas operaciones. ¿Hay un bucle infinito?`,
-  'Cannot read': (prop) => `❌ No se puede leer "${prop}". ¿La variable existe?`,
-  'invalid assignment': `❌ Asignación inválida. ¿Estás asignando a una constante?`,
-  'undefined': (prop) => `❌ "${prop}" es undefined. ¿Lo definiste antes de usarlo?`,
-  'null': (prop) => `❌ "${prop}" es null. ¿Lo inicializaste correctamente?`,
-};
-
-// Consejos por tipo de problema
-const TIPS = {
-  'let': '💡 Usa "let" para variables que cambiarán: let edad = 25;',
-  'const': '💡 Usa "const" para valores fijos: const PI = 3.14;',
-  'function': '💡 Declara funciones así: function nombre() { return valor; }',
-  'arrow': '💡 Arrow function: const fn = (a, b) => a + b;',
-  'if': '💡 Condicional: if (condicion) { /* código */ }',
-  'for': '💡 Bucle: for (let i = 0; i < 5; i++) { /* código */ }',
-  'while': '💡 Bucle: while (condicion) { /* código */ }',
-  'return': '💡 Las funciones devuelven valores con: return valor;',
-  'console.log': '💡 Muestra mensajes con: console.log("texto");',
-  'array': '💡 Crea arrays: let nums = [1, 2, 3];',
-  'object': '💡 Crea objetos: let obj = { clave: "valor" };',
-  'typeof': '💡 Verifica tipos: typeof variable === "string"',
-  'string': '💡 Los strings van entre comillas: "texto" o \'texto\'',
-  'number': '💡 Los números van sin comillas: 42, 3.14',
-  'boolean': '💡 Booleanos: true o false (sin comillas)',
+  'Cannot read': (prop) => `❌ No se puede leer "${prop}".`,
+  'invalid assignment': `❌ Asignación inválida.`,
+  'undefined': (prop) => `❌ "${prop}" es undefined.`,
+  'null': (prop) => `❌ "${prop}" es null.`,
 };
 
 function getFriendlyError(error) {
@@ -62,7 +43,7 @@ function getFriendlyError(error) {
   for (const [key, handler] of Object.entries(ERROR_MESSAGES)) {
     if (errorStr.includes(key)) {
       if (typeof handler === 'function') {
-        const match = errorStr.match(/(\w+)/);
+        const match = errorStr.match(/["']?(\w+)["']?/);
         return handler(match ? match[1] : key);
       }
       return handler;
@@ -72,99 +53,30 @@ function getFriendlyError(error) {
   return `❌ Error: ${errorStr}`;
 }
 
-// Analiza el código y da feedback constructivo
+// Analiza el código
 export function analyzeCodeStructure(code, level) {
   const issues = [];
   const warnings = [];
   const suggestions = [];
   
-  // Detectar código peligroso
   for (const pattern of DANGEROUS_PATTERNS) {
     if (pattern.test(code)) {
       issues.push(`Código no permitido detectado`);
     }
   }
   
-  // Analizar qué conceptos usa el estudiante
-  const concepts = detectConcepts(code);
-  
-  // Verificar si el concepto del nivel está presente
-  if (level?.challenge?.requiredConcepts) {
-    for (const concept of level.challenge.requiredConcepts) {
-      if (!concepts.includes(concept)) {
-        warnings.push(TIPS[concept] || `💡 Este nivel requiere: ${concept}`);
-      }
-    }
-  }
-  
-  // Tips según el nivel
-  if (level?.id) {
-    if (level.id.includes('variable')) {
-      if (!code.includes('let') && !code.includes('const')) {
-        suggestions.push(TIPS['let']);
-      }
-    }
-  }
-  
-  // Detectar problemas comunes
   if (code.includes('while(true)') || code.includes('while (true)')) {
     warnings.push('⚠️ Cuidado: while(true) puede crear un bucle infinito');
   }
   
-  if (code.includes('for (;;)')) {
-    warnings.push('⚠️ Cuidado: for(;;) puede crear un bucle infinito');
-  }
-  
-  if (code.match(/\/\s*\*[\s\S]*?undefined/g)) {
-    warnings.push('💡 undefined es un valor, no una cadena de texto');
-  }
-  
-  // Verificar uso de = en vez de ===
   if (code.match(/if\s*\([^)]*=[^=]/)) {
     warnings.push('💡 ¿Usaste = en vez de === dentro del if?');
   }
   
-  return { 
-    issues, 
-    warnings, 
-    suggestions,
-    concepts,
-    isValid: issues.length === 0 
-  };
+  return { issues, warnings, suggestions, isValid: issues.length === 0 };
 }
 
-function detectConcepts(code) {
-  const concepts = [];
-  const codeLower = code.toLowerCase();
-  
-  if (/\blet\s+\w+/.test(code)) concepts.push('let');
-  if (/\bconst\s+\w+/.test(code)) concepts.push('const');
-  if (/\bfunction\s+\w+/.test(code)) concepts.push('function');
-  if (/=>\s*[{(]/.test(code) || /const\s+\w+\s*=\s*\([^)]*\)\s*=>/.test(code)) concepts.push('arrow');
-  if (/\bif\s*\(/.test(code)) concepts.push('if');
-  if (/\bfor\s*\(/.test(code)) concepts.push('for');
-  if (/\bwhile\s*\(/.test(code)) concepts.push('while');
-  if (/\breturn\s+/.test(code)) concepts.push('return');
-  if (/console\.log/.test(code)) concepts.push('console.log');
-  if (/\[\s*[\d,.\s]+\s*\]/.test(code) || /Array\s*\(/.test(code)) concepts.push('array');
-  if (/{\s*[\w]+\s*:/.test(code)) concepts.push('object');
-  if (/\btypeof\s+/.test(code)) concepts.push('typeof');
-  if (/"[^"]*"|'[^']*'/.test(code)) concepts.push('string');
-  if (/\b\d+(\.\d+)?/.test(code) && !/"[^"]*'/.test(code)) concepts.push('number');
-  if (/\btrue\b|\bfalse\b/.test(code)) concepts.push('boolean');
-  if (/\[\s*\]/.test(code)) concepts.push('array');
-  if (/\.(push|pop|map|filter|reduce)\s*\(/.test(code)) {
-    concepts.push('array-methods');
-  }
-  if (/\.length/.test(code)) concepts.push('property');
-  if (/\.(toUpperCase|toLowerCase|includes|slice|split)\s*\(/.test(code)) {
-    concepts.push('string-methods');
-  }
-  
-  return concepts;
-}
-
-// Ejecuta código con contexto seguro
+// Ejecuta código y retorna variables
 export function runCode(userCode, level, onProgress) {
   if (!level?.challenge?.tests) {
     return { success: false, error: 'Nivel sin tests configurados', testResults: [] };
@@ -172,17 +84,11 @@ export function runCode(userCode, level, onProgress) {
   
   const analysis = analyzeCodeStructure(userCode, level);
   if (!analysis.isValid) {
-    return { 
-      success: false, 
-      error: analysis.issues[0], 
-      warnings: analysis.warnings,
-      testResults: [] 
-    };
+    return { success: false, error: analysis.issues[0], testResults: [] };
   }
   
   const logs = [];
   
-  // Crear contexto de consola seguro
   const safeConsole = {
     log: (...args) => {
       const text = args.map(arg => {
@@ -202,42 +108,20 @@ export function runCode(userCode, level, onProgress) {
     info: (...args) => logs.push('ℹ️ ' + args.join(' '))
   };
   
-  // Variables que el código puede usar
-  const allowedVars = [
-    'nombre', 'edad', 'pais', 'ciudad', 'numero', 'resultado', 'suma',
-    'base', 'altura', 'area', 'lenguaje', 'version', 'esGenial',
-    'a', 'b', 'c', 'x', 'y', 'z', 'i', 'j', 'k', 'n', 'm',
-    'texto', 'saludo', 'tipo', 'valor', 'dia', 'mensaje',
-    'multiplicar', 'esPar', 'contador1', 'crearContador',
-    'numeros', 'longitud', 'libro', 'obj1', 'obj2', 'persona',
-    'frutas', 'notas', 'resultadoFinal', 'invertido', 'contador',
-    'productos', 'nombres', 'masLargo', 'sumaTotal', 'pares',
-    'positivo', 'negativo', 'cero', 'count', 'escalones'
-  ];
-  
   try {
-    // Crear función que ejecuta el código del usuario
-    const wrappedCode = `
+    // Crear contexto que ejecute el código y capture las variables
+    const contextCode = `
       "use strict";
+      const console = arguments[0];
       ${userCode}
+      ;
+      return { ${getDeclaredVars(userCode).join(', ')} };
     `;
     
-    // Crear valores iniciales dummy para permitir que el código compile
-    const initialContext = {};
-    allowedVars.forEach(v => initialContext[v] = undefined);
+    const capturedVars = new Function('console', contextCode)(safeConsole);
     
-    // Ejecutar el código
-    const execFn = new Function(
-      'console',
-      ...allowedVars,
-      wrappedCode
-    );
-    
-    // Llamar con la consola segura
-    execFn(safeConsole, ...Object.values(initialContext));
-    
-    // Ahora evaluar los tests
-    const testResults = evaluateTests(userCode, level.challenge.tests, safeConsole, allowedVars);
+    // Ahora evaluar los tests con las variables capturadas
+    const testResults = evaluateTestsWithVars(capturedVars, level.challenge.tests);
     
     const allPassed = testResults.every(t => t.passed);
     
@@ -245,10 +129,8 @@ export function runCode(userCode, level, onProgress) {
       success: allPassed,
       error: allPassed ? null : testResults.find(t => !t.passed)?.message,
       warnings: analysis.warnings,
-      suggestions: analysis.suggestions,
       logs: logs,
-      testResults: testResults,
-      concepts: analysis.concepts
+      testResults: testResults
     };
     
   } catch (error) {
@@ -256,32 +138,45 @@ export function runCode(userCode, level, onProgress) {
       success: false,
       error: getFriendlyError(error),
       warnings: analysis.warnings,
-      suggestions: analysis.suggestions,
       logs: logs,
       testResults: []
     };
   }
 }
 
-function evaluateTests(userCode, tests, console, allowedVars) {
+// Extrae los nombres de variables declaradas en el código
+function getDeclaredVars(code) {
+  const vars = [];
+  
+  // Buscar let, const, var declarations
+  const letMatch = code.matchAll(/(?:let|const|var)\s+(\w+)/g);
+  for (const match of letMatch) {
+    vars.push(match[1]);
+  }
+  
+  // Buscar function declarations
+  const funcMatch = code.matchAll(/function\s+(\w+)/g);
+  for (const match of funcMatch) {
+    vars.push(match[1]);
+  }
+  
+  return vars;
+}
+
+// Evalúa los tests con las variables capturadas
+function evaluateTestsWithVars(capturedVars, tests) {
   const results = [];
   
   for (const test of tests) {
     try {
-      // El test es una expresión que debe evaluar a true
-      // Primero ejecutamos el código del usuario, luego evaluamos el test
+      // Crear una función que tenga acceso a las variables capturadas
       const testCode = `
         "use strict";
-        ${userCode}
-        ;
+        const { ${Object.keys(capturedVars).join(', ')} } = arguments[0];
         return (${test.code});
       `;
       
-      const contextValues = {};
-      allowedVars.forEach(v => contextValues[v] = undefined);
-      
-      const testFn = new Function('console', ...allowedVars, testCode);
-      const passed = testFn(console, ...Object.values(contextValues));
+      const passed = new Function(testCode)(capturedVars);
       
       results.push({
         code: test.code,
@@ -305,7 +200,7 @@ function evaluateTests(userCode, tests, console, allowedVars) {
 
 // Hint progresivo
 export function getLevelHint(level, attemptCount = 0) {
-  if (!level?.challenge?.hints) return 'Revisa la teoría y intenta de nuevo.';
+  if (!level?.challenge?.hints) return 'Revisa la teoría y piensa en la solución.';
   
   const hints = level.challenge.hints;
   
