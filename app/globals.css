@@ -599,11 +599,15 @@ body {
   background: transparent;
   border: none;
   color: var(--text-secondary);
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
   position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
 .tab:hover {
@@ -613,6 +617,7 @@ body {
 
 .tab.active {
   color: var(--accent-secondary);
+  background: rgba(99, 102, 241, 0.1);
 }
 
 .tab.active::after {
@@ -871,12 +876,20 @@ body {
 
 .editor-wrapper {
   flex: 1;
-  min-height: 300px;
+  min-height: 350px;
+  height: 350px;
   overflow: hidden;
+  position: relative;
 }
 
 .editor-wrapper > div {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
   height: 100% !important;
+  width: 100% !important;
 }
 
 .editor-loading {

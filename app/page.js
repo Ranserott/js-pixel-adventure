@@ -328,12 +328,14 @@ export default function Home() {
             <button 
               className={`tab ${activeTab === 'theory' ? 'active' : ''}`}
               onClick={() => setActiveTab('theory')}
+              style={{ color: activeTab === 'theory' ? '#818cf8' : undefined }}
             >
               📖 Teoría
             </button>
             <button 
               className={`tab ${activeTab === 'challenge' ? 'active' : ''}`}
               onClick={() => setActiveTab('challenge')}
+              style={{ color: activeTab === 'challenge' ? '#22c55e' : undefined }}
             >
               💻 Desafío
             </button>
