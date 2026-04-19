@@ -781,69 +781,68 @@ body {
 }
 
 /* Monaco Editor Container */
-.monaco-editor-container {
+/* Code Editor Wrapper */
+.code-editor-wrapper {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  background: #1e1e1e;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--border-color);
 }
 
-.editor-toolbar {
+.code-editor-toolbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 10px 14px;
-  background: var(--bg-secondary);
-  border-bottom: 1px solid var(--border-color);
-  flex-shrink: 0;
+  background: #252526;
+  border-bottom: 1px solid #3c3c3c;
 }
 
-.editor-info {
+.toolbar-left {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
-.editor-language {
+.editor-lang {
   font-size: 12px;
-  color: var(--accent-secondary);
+  color: #569cd6;
   font-weight: 600;
   text-transform: uppercase;
 }
 
-.editor-lines {
-  font-size: 11px;
-  color: var(--text-muted);
-}
-
-.editor-actions {
+.toolbar-right {
   display: flex;
+  align-items: center;
   gap: 8px;
 }
 
 .clear-btn {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  padding: 6px 12px;
-  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid #3c3c3c;
+  border-radius: 4px;
+  padding: 5px 10px;
+  color: #808080;
   font-size: 12px;
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .clear-btn:hover {
-  background: var(--accent-error);
+  background: #f44336;
   color: white;
-  border-color: var(--accent-error);
+  border-color: #f44336;
 }
 
 .run-btn {
-  background: var(--accent-success);
+  background: #22c55e;
   border: none;
-  border-radius: 6px;
-  padding: 8px 18px;
+  border-radius: 4px;
+  padding: 6px 14px;
   color: white;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
@@ -854,7 +853,6 @@ body {
 
 .run-btn:hover:not(:disabled) {
   background: #16a34a;
-  transform: scale(1.05);
 }
 
 .run-btn:disabled {
@@ -863,53 +861,31 @@ body {
 }
 
 .run-btn.running {
-  background: var(--accent-warning);
+  background: #f59e0b;
 }
 
-.run-btn.running .spinner {
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-.editor-wrapper {
-  flex: 1;
-  min-height: 350px;
-  height: 350px;
-  overflow: hidden;
-  position: relative;
-}
-
-.editor-wrapper > div {
-  position: absolute !important;
-  top: 0 !important;
-  left: 0 !important;
-  right: 0 !important;
-  bottom: 0 !important;
-  height: 100% !important;
-  width: 100% !important;
-}
-
-.editor-loading {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.code-editor-content {
+  min-height: 300px;
   height: 300px;
-  color: var(--text-secondary);
+  overflow: hidden;
 }
 
-.editor-shortcuts {
-  padding: 8px 14px;
-  background: var(--bg-secondary);
-  border-top: 1px solid var(--border-color);
+.code-editor-content > div {
+  height: 300px !important;
+}
+
+.code-editor-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 14px;
+  background: #252526;
+  border-top: 1px solid #3c3c3c;
   font-size: 11px;
-  color: var(--text-muted);
-  text-align: center;
-  flex-shrink: 0;
+  color: #808080;
 }
 
+/* Tests Section */
 /* Tests Section */
 .tests-section {
   padding: 16px;
