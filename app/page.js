@@ -2,7 +2,11 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { curriculum } from '../data/curriculum';
+import { additionalModules } from '../data/achievements';
 import { runCode, analyzeCodeStructure, getLevelHint, getMotivationalMessage } from '../utils/evaluator';
+import CodeEditor from '../components/CodeEditor';
+import AchievementsPanel from '../components/AchievementsPanel';
+import FeedbackAnimation from '../components/FeedbackAnimation';
 
 export default function Home() {
   const [view, setView] = useState('home');
@@ -18,7 +22,18 @@ export default function Home() {
   const [attemptCount, setAttemptCount] = useState(0);
   const [showSolution, setShowSolution] = useState(false);
   const [motivationalMsg, setMotivationalMsg] = useState('');
-  const [codeStats, setCodeStats] = useState({ chars: 0, lines: 0 });
+  const [stats, setStats] = useState({
+    completedLessons: 0,
+    completedModules: 0,
+    totalLessons: 0,
+    streak: 0,
+    firstAttemptWins: 0,
+    hintsUsed: 0,
+    noHelpCompletions: 0
+  });
+
+  // Combinar módulos base + adicionales
+  const allModules = { ...curriculum, ...additionalModules };
 
   // Cargar progreso
   useEffect(() => {
@@ -28,10 +43,25 @@ export default function Home() {
         try {
           const data = JSON.parse(saved);
           setCompletedLessons(data.completedLessons || []);
+          
+          // Cargar streak
+          const streakData = localStorage.getItem('js-learn-streak');
+          if (streakData) {
+            const { lastDate } = JSON.parse(streakData);
+            const last = new Date(lastDate);
+            const now = new Date();
+            const diff = Math.floor((now - last) / (1000 * 60 * 60 * 24));
+            if (diff <= 1) {
+              setStats(prev => ({ ...prev, streak: diff === 1 ? prev.streak + 1 : 1 }));
+            }
+          }
         } catch (e) {
           console.error('Error loading progress:', e);
         }
       }
+      
+      // Actualizar streak
+      localStorage.setItem('js-learn-streak', JSON.stringify({ lastDate: new Date().toISOString() }));
     }
   }, []);
 
@@ -41,16 +71,21 @@ export default function Home() {
       localStorage.setItem('js-learn-progress', JSON.stringify({
         completedLessons
       }));
+      
+      // Actualizar stats
+      const totalLessons = Object.values(allModules).reduce((acc, mod) => acc + mod.lessons.length, 0);
+      const completedModules = Object.values(allModules).filter(mod => 
+        mod.lessons.every(l => completedLessons.includes(l.id))
+      ).length;
+      
+      setStats(prev => ({
+        ...prev,
+        completedLessons: completedLessons.length,
+        completedModules,
+        totalLessons
+      }));
     }
-  }, [completedLessons]);
-
-  // Actualizar estadísticas del código
-  useEffect(() => {
-    setCodeStats({
-      chars: code.length,
-      lines: code.split('\n').length
-    });
-  }, [code]);
+  }, [completedLessons, allModules]);
 
   // Ejecutar código
   const handleRunCode = useCallback(() => {
@@ -60,6 +95,11 @@ export default function Home() {
     setOutput([]);
     setTestResults([]);
     setAttemptCount(prev => prev + 1);
+    
+    // Verificar si usó pistas
+    if (showHint) {
+      setStats(prev => ({ ...prev, hintsUsed: prev.hintsUsed + 1 }));
+    }
     
     const onProgress = (data) => {
       if (data.type === 'console') {
@@ -81,10 +121,6 @@ export default function Home() {
       result.warnings.forEach(w => setOutput(prev => [...prev, w]));
     }
     
-    if (result.suggestions && result.suggestions.length > 0) {
-      result.suggestions.forEach(s => setOutput(prev => [...prev, s]));
-    }
-    
     if (result.testResults) {
       setTestResults(result.testResults);
     }
@@ -92,15 +128,25 @@ export default function Home() {
     // Si pasa, marcar como completado
     if (result.success) {
       setOutput(prev => [...prev, '🎉 ¡Felicidades! ¡Todos los tests pasaron!']);
+      
+      // Verificar si fue sin ayuda
+      if (!showHint && !showSolution && attemptCount === 0) {
+        setStats(prev => ({ ...prev, noHelpCompletions: prev.noHelpCompletions + 1 }));
+      }
+      
+      // Primer intento
+      if (attemptCount === 0) {
+        setStats(prev => ({ ...prev, firstAttemptWins: prev.firstAttemptWins + 1 }));
+      }
+      
       if (!completedLessons.includes(currentLesson.id)) {
         setCompletedLessons(prev => [...prev, currentLesson.id]);
       }
     } else if (attemptCount >= 2) {
-      // Mostrar mensaje motivacional después de intentos
       setMotivationalMsg(getMotivationalMessage());
     }
     
-  }, [code, currentLesson, completedLessons, attemptCount]);
+  }, [code, currentLesson, completedLessons, showHint, showSolution, attemptCount]);
 
   // Navegación
   const goToModule = (moduleKey) => {
@@ -132,15 +178,13 @@ export default function Home() {
     setView('home');
     setCurrentModule(null);
     setCurrentLesson(null);
-    setCode('');
-    setOutput([]);
-    setError(null);
   };
 
   const resetProgress = () => {
     if (confirm('¿Seguro que quieres reiniciar todo tu progreso?')) {
       setCompletedLessons([]);
       localStorage.removeItem('js-learn-progress');
+      localStorage.removeItem('lastShownAchievements');
     }
   };
 
@@ -148,7 +192,7 @@ export default function Home() {
   // PANTALLA PRINCIPAL
   // ═══════════════════════════════════════════════════════════
   if (view === 'home') {
-    const totalLessons = getTotalLessons();
+    const totalLessons = Object.values(allModules).reduce((acc, mod) => acc + mod.lessons.length, 0);
     const progress = Math.round((completedLessons.length / totalLessons) * 100);
     
     return (
@@ -158,13 +202,14 @@ export default function Home() {
             <span className="logo-icon">📚</span>
             <h1>Aprende JavaScript</h1>
           </div>
+          <AchievementsPanel stats={stats} completedLessons={completedLessons} />
           <button className="reset-progress-btn" onClick={resetProgress} title="Reiniciar progreso">
             🔄
           </button>
         </header>
 
         <main className="modules-grid">
-          {Object.entries(curriculum).map(([key, module]) => {
+          {Object.entries(allModules).map(([key, module]) => {
             const moduleLessons = module.lessons.length;
             const completedInModule = module.lessons.filter(l => completedLessons.includes(l.id)).length;
             const moduleProgress = Math.round((completedInModule / moduleLessons) * 100);
@@ -177,12 +222,13 @@ export default function Home() {
                 <div className="module-progress">
                   <div className="progress-bar">
                     <div 
-                      className="progress-fill"
+                      className={`progress-fill ${moduleProgress === 100 ? 'complete' : ''}`}
                       style={{ width: `${moduleProgress}%` }}
                     />
                   </div>
                   <span className="progress-text">{completedInModule}/{moduleLessons}</span>
                 </div>
+                {moduleProgress === 100 && <span className="module-complete-badge">✅</span>}
               </div>
             );
           })}
@@ -201,10 +247,14 @@ export default function Home() {
             <span className="stat-value">{progress}%</span>
             <span className="stat-label">Progreso total</span>
           </div>
+          <div className="summary-stat">
+            <span className="stat-value">🔥 {stats.streak}</span>
+            <span className="stat-label">Días racha</span>
+          </div>
         </div>
 
         <footer className="learn-footer">
-          <p>🎓 Aprende JavaScript paso a paso</p>
+          <p>🎓 Aprende JavaScript paso a paso - {totalLessons} lecciones disponibles</p>
         </footer>
       </div>
     );
@@ -214,7 +264,7 @@ export default function Home() {
   // PANTALLA DE MÓDULO
   // ═══════════════════════════════════════════════════════════
   if (view === 'module' && currentModule) {
-    const module = curriculum[currentModule];
+    const module = allModules[currentModule];
     const completedInModule = module.lessons.filter(l => completedLessons.includes(l.id)).length;
     
     return (
@@ -247,7 +297,9 @@ export default function Home() {
                 <div className="lesson-number">{statusIcon}</div>
                 <div className="lesson-info">
                   <h3>{lesson.title}</h3>
-                  <span className="lesson-type">📖 Lección + 💻 Desafío</span>
+                  <span className="lesson-type">
+                    {lesson.type === 'project' ? '🚀 Proyecto' : '📖 Lección'} + 💻 Desafío
+                  </span>
                 </div>
                 <div className="lesson-arrow">→</div>
               </div>
@@ -303,13 +355,15 @@ export default function Home() {
 
           {activeTab === 'challenge' && currentLesson.challenge && (
             <div className="challenge-panel">
+              <FeedbackAnimation testResults={testResults} />
+              
               <div className="challenge-info">
                 <h3>🎯 {currentLesson.challenge.title}</h3>
                 <p>{currentLesson.challenge.description}</p>
                 
                 <div className="challenge-hints-section">
                   <button className="hint-toggle" onClick={() => setShowHint(!showHint)}>
-                    💡 {showHint ? 'Ocultar' : 'Mostrar'} pistas ({currentLesson.challenge.hints?.length || 0})
+                    💡 {showHint ? 'Ocultar' : 'Mostrar'} pistas
                   </button>
                   {showHint && (
                     <ul className="hints-list">
@@ -322,30 +376,10 @@ export default function Home() {
               </div>
 
               <div className="code-section">
-                <div className="code-header">
-                  <div className="code-title">
-                    <span>JavaScript</span>
-                    <span className="code-stats">{codeStats.lines} líneas, {codeStats.chars} chars</span>
-                  </div>
-                  <div className="code-actions">
-                    <button className="clear-btn" onClick={() => { setCode(''); setError(null); setOutput([]); setTestResults([]); }}>
-                      🗑️ Limpiar
-                    </button>
-                    <button className="run-btn" onClick={handleRunCode}>
-                      ▶ Ejecutar
-                    </button>
-                  </div>
-                </div>
-                
-                <textarea
-                  className="code-input"
-                  value={code}
-                  onChange={(e) => setCode(e.target.value)}
-                  placeholder="// Escribe tu código JavaScript aquí..."
-                  spellCheck={false}
-                  autoComplete="off"
-                  autoCorrect="off"
-                  autoCapitalize="off"
+                <CodeEditor
+                  initialCode={code}
+                  onRun={handleRunCode}
+                  onChange={setCode}
                 />
 
                 {/* Tests Results */}
@@ -378,7 +412,7 @@ export default function Home() {
                   </div>
                 )}
 
-                {/* Motivational message */}
+                {/* Motivational */}
                 {motivationalMsg && !error && testResults.length > 0 && !testResults.every(t => t.passed) && (
                   <div className="motivational-section">
                     {motivationalMsg}
@@ -407,8 +441,4 @@ export default function Home() {
   }
 
   return null;
-}
-
-function getTotalLessons() {
-  return Object.values(curriculum).reduce((acc, mod) => acc + mod.lessons.length, 0);
 }
