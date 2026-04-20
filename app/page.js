@@ -182,8 +182,12 @@ export default function Home() {
   };
 
   const handleNextLesson = () => {
+    console.log('handleNextLesson called', { currentModule, currentLesson });
     const currentModuleData = allModules[currentModule];
-    if (!currentModuleData) return;
+    if (!currentModuleData) {
+      console.log('No currentModuleData found');
+      return;
+    }
     
     const lessons = currentModuleData.lessons;
     const currentIndex = lessons.findIndex(l => l.id === currentLesson.id);
