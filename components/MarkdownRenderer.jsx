@@ -17,30 +17,30 @@ function highlightJS(code) {
 
   const builtins = ['console', 'document', 'window', 'Math', 'Array', 'Object', 'String', 'Number'];
 
-  let result = code
-    // Escape HTML first
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
+  // DO STRING REPLACEMENT BEFORE ANY HTML ESCAPING
+  // Since we're inside <pre> tags, we don't need to escape HTML inside code blocks
+  // The browser will handle rendering
+  
+  let result = code;
 
-    // Strings
-    .replace(/(['"`])((?:\\.|(?!\1)[^\\])*?)\1/g, '<span class="md-string">$1$2$1</span>')
+  // Strings - capture original quotes and keep them
+  result = result.replace(/(['"`])((?:\\.|(?!\1)[^\\])*?)\1/g, '<span class="md-string">$&</span>');
 
-    // Comments
-    .replace(/(\/\/.*$)/gm, '<span class="md-comment">$1</span>')
-    .replace(/(\/\*[\s\S]*?\*\/)/g, '<span class="md-comment">$1</span>')
+  // Comments
+  result = result.replace(/(\/\/.*$)/gm, '<span class="md-comment">$1</span>');
+  result = result.replace(/(\/\*[\s\S]*?\*\/)/g, '<span class="md-comment">$1</span>');
 
-    // Keywords
-    .replace(new RegExp(`\\b(${keywords.join('|')})\\b`, 'g'), '<span class="md-keyword">$1</span>')
+  // Keywords
+  result = result.replace(new RegExp(`\\b(${keywords.join('|')})\\b`, 'g'), '<span class="md-keyword">$1</span>');
 
-    // Numbers
-    .replace(/\b(\d+\.?\d*)\b/g, '<span class="md-number">$1</span>')
+  // Numbers
+  result = result.replace(/\b(\d+\.?\d*)\b/g, '<span class="md-number">$1</span>');
 
-    // Built-in objects
-    .replace(new RegExp(`\\b(${builtins.join('|')})\\b`, 'g'), '<span class="md-builtin">$1</span>')
+  // Built-in objects
+  result = result.replace(new RegExp(`\\b(${builtins.join('|')})\\b`, 'g'), '<span class="md-builtin">$1</span>');
 
-    // Function calls
-    .replace(/\b([a-zA-Z_$][\w$]*)\s*\(/g, '<span class="md-function">$1</span>(');
+  // Function calls
+  result = result.replace(/\b([a-zA-Z_$][\w$]*)\s*\(/g, '<span class="md-function">$1</span>(');
 
   return result;
 }
