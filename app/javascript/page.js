@@ -280,7 +280,7 @@ export default function JavaScriptCourse() {
           </button>
         </header>
 
-        <main className="lessons-grid">
+        <main className="lessons-list">
           {module.lessons?.map((lesson, index) => {
             const isCompleted = completedLessons.includes(lesson.id);
             const isUnlocked = index === 0 || completedLessons.includes(module.lessons[index - 1].id);
@@ -288,7 +288,7 @@ export default function JavaScriptCourse() {
             return (
               <div 
                 key={lesson.id}
-                className={`lesson-card ${isCompleted ? 'completed' : ''} ${!isUnlocked ? 'locked' : ''}`}
+                className={`lesson-item ${isCompleted ? 'completed' : ''} ${!isUnlocked ? 'locked' : ''}`}
                 onClick={() => isUnlocked && goToLesson(lesson)}
               >
                 <div className="lesson-number">{index + 1}</div>
