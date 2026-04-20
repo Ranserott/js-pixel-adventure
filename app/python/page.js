@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { curriculumPython } from '../../data/curriculum-python';
 import { additionalModules } from '../../data/achievements';
-import { runCode, analyzeCodeStructure, getLevelHint, getMotivationalMessage } from '../../utils/evaluator';
+import { runPythonCode, analyzePythonStructure, getLevelHint, getMotivationalMessage } from '../../utils/python-evaluator';
 import CodeEditor from '../../components/CodeEditor';
 import AchievementsPanel from '../../components/AchievementsPanel';
 import FeedbackAnimation from '../../components/FeedbackAnimation';
@@ -108,7 +108,7 @@ export default function Home() {
       }
     };
     
-    const result = runCode(code, currentLesson, onProgress);
+    const result = runPythonCode(code, currentLesson, onProgress);
     
     if (result.logs && result.logs.length > 0) {
       setOutput(prev => [...prev, ...result.logs]);

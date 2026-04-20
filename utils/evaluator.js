@@ -1,5 +1,5 @@
 /**
- * Evaluador simple y robusto
+ * Evaluador para JavaScript
  */
 
 function getFriendlyError(error) {
@@ -34,7 +34,6 @@ export function runCode(userCode, level, onProgress) {
   const logs = [];
   const results = [];
   
-  // Logger simple
   const log = (...args) => {
     const text = args.map(a => {
       if (a === null) return 'null';
@@ -49,10 +48,6 @@ export function runCode(userCode, level, onProgress) {
   };
   
   try {
-    // Crear un contexto donde ejecutamos el código y luego evaluamos los tests
-    // Usamos new Function para crear un scope limpio
-    
-    // Primero, ejecutamos el código del usuario en un contexto
     const execCode = `
       "use strict";
       var console = { log: arguments[0] };
@@ -62,13 +57,8 @@ export function runCode(userCode, level, onProgress) {
     const execFn = new Function(execCode);
     execFn(log);
     
-    // Ahora evaluamos los tests
-    // Para esto, necesitamos acceder a las variables definidas
-    // Vamos a usar eval en el mismo contexto
-    
     for (const test of level.challenge.tests) {
       try {
-        // Crear un test que ejecute el código y luego evalúe la condición
         const testCode = `
           "use strict";
           var console = { log: function(){} };
