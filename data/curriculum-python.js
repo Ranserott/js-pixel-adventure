@@ -1052,4 +1052,321 @@ pares = list(filter(lambda x: x % 2 == 0, numeros))`,
       }
     ]
   }
+
+  ,
+  pandas: {
+    title: "Pandas - Datos",
+    description: "Introducción a Pandas para análisis de datos",
+    icon: "🐼",
+    lessons: [
+      {
+        id: "py-pandas-series",
+        title: "Series en Pandas",
+        type: "lesson",
+        theory: `
+# Series en Pandas
+
+Una Series es como una columna en una tabla - una estructura de datos 1D.
+
+## Crear Series
+\`\`\`python
+import pandas as pd
+
+# Desde una lista
+frutas = pd.Series(["manzana", "pera", "uva"])
+
+# Con índice personalizado
+datos = pd.Series([90, 85, 78], index=["Ana", "Bob", "Carlos"])
+\`\`\`
+
+## Acceder elementos
+\`\`\`python
+datos["Ana"]      # 90
+datos[0]          # 90 (por posición)
+datos.iloc[0]     # 90 (por posición)
+datos.loc["Ana"]  # 90 (por índice)
+\`\`\`
+
+## Operaciones
+\`\`\`python
+datos.mean()   # Promedio: 84.33
+datos.sum()    # Suma: 253
+datos.max()    # Máximo: 90
+datos.min()    # Mínimo: 78
+\`\`\`
+
+## Filtrar
+\`\`\`python
+datos[datos > 80]  # Filtrar valores > 80
+\`\`\`
+        `,
+        challenge: {
+          title: "Crea una Series",
+          description: "Crea una Series 'notas' con valores [85, 90, 78] e índices ['Ana', 'Bob', 'Carlos']",
+          hints: [
+            "Usa pd.Series([datos], index=[nombres])",
+            "Los valores y índices van en listas"
+          ],
+          solution: `import pandas as pd
+notas = pd.Series([85, 90, 78], index=["Ana", "Bob", "Carlos"])`,
+          tests: [
+            { code: "notas['Ana'] == 85", description: "notas['Ana'] debe ser 85" },
+            { code: "notas['Bob'] == 90", description: "notas['Bob'] debe ser 90" },
+            { code: "notas['Carlos'] == 78", description: "notas['Carlos'] debe ser 78" }
+          ]
+        }
+      },
+      {
+        id: "py-pandas-dataframe",
+        title: "DataFrames",
+        type: "lesson",
+        theory: `
+# DataFrames
+
+Un DataFrame es como una tabla - estructura de datos 2D con filas y columnas.
+
+## Crear DataFrame
+\`\`\`python
+import pandas as pd
+
+datos = {
+    "nombre": ["Ana", "Bob", "Carlos"],
+    "edad": [25, 30, 35],
+    "ciudad": ["Santiago", "Lima", "Bogotá"]
+}
+
+df = pd.DataFrame(datos)
+\`\`\`
+
+## Ver datos
+\`\`\`python
+df.head()      # Primeras 5 filas
+df.tail()      # Últimas 5 filas
+df.shape       # (3, 3) - filas y columnas
+df.columns     # Lista de columnas
+df.info()      # Información del DataFrame
+\`\`\`
+
+## Acceder columnas
+\`\`\`python
+df["nombre"]       # Columna como Series
+df[["nombre", "edad"]]  # Múltiples columnas
+\`\`\`
+
+## Filtrar filas
+\`\`\`python
+df[df["edad"] > 25]  # Filas donde edad > 25
+\`\`\`
+        `,
+        challenge: {
+          title: "Crea un DataFrame",
+          description: "Crea un DataFrame 'df' con columnas 'nombre' = ['Ana', 'Bob'] y 'edad' = [25, 30]",
+          hints: [
+            "Usa pd.DataFrame({'col1': datos1, 'col2': datos2})",
+            "Los datos van en un diccionario"
+          ],
+          solution: `import pandas as pd
+df = pd.DataFrame({
+    "nombre": ["Ana", "Bob"],
+    "edad": [25, 30]
+})`,
+          tests: [
+            { code: "df['nombre'][0] == 'Ana'", description: "Primera fila nombre debe ser 'Ana'" },
+            { code: "df['edad'][0] == 25", description: "Primera fila edad debe ser 25" },
+            { code: "df['nombre'][1] == 'Bob'", description: "Segunda fila nombre debe ser 'Bob'" }
+          ]
+        }
+      },
+      {
+        id: "py-pandas-manipulation",
+        title: "Manipulación de Datos",
+        type: "lesson",
+        theory: `
+# Manipulación de Datos
+
+## Seleccionar y filtrar
+\`\`\`python
+df = pd.DataFrame({
+    "nombre": ["Ana", "Bob", "Carlos"],
+    "edad": [25, 30, 35],
+    "ciudad": ["Santiago", "Lima", "Bogotá"]
+})
+
+# Selección por columna
+df["nombre"]
+
+# Selección por posición (iloc)
+df.iloc[0]           # Primera fila
+df.iloc[0:2]         # Primeras 2 filas
+
+# Selección por etiqueta (loc)
+df.loc[0]            # Primera fila
+df.loc[0, "nombre"]  # Valor específico
+\`\`\`
+
+## Agregar columnas
+\`\`\`python
+df["pais"] = ["Chile", "Perú", "Colombia"]
+\`\`\`
+
+## Eliminar columnas
+\`\`\`python
+df.drop("ciudad", axis=1, inplace=True)
+\`\`\`
+
+## Estadísticas
+\`\`\`python
+df["edad"].mean()    # Promedio
+df["edad"].sum()     # Suma
+df["edad"].max()     # Máximo
+df["edad"].min()     # Mínimo
+df.describe()        # Resumen estadístico
+\`\`\`
+        `,
+        challenge: {
+          title: "Manipula el DataFrame",
+          description: "Dado df con columnas 'nombre' y 'edad', añade columna 'pais' = ['Chile', 'Perú']",
+          hints: [
+            "Usa df['nueva_col'] = valores",
+            "Debes añadir la columna pais a df"
+          ],
+          solution: `import pandas as pd
+df = pd.DataFrame({
+    "nombre": ["Ana", "Bob"],
+    "edad": [25, 30]
+})
+df["pais"] = ["Chile", "Perú"]`,
+          tests: [
+            { code: "df['pais'][0] == 'Chile'", description: "pais de Ana debe ser 'Chile'" },
+            { code: "df['pais'][1] == 'Perú'", description: "pais de Bob debe ser 'Perú'" }
+          ]
+        }
+      }
+    ]
+  },
+  numpy: {
+    title: "NumPy - Arrays",
+    description: "Introducción a NumPy para computación numérica",
+    icon: "🔢",
+    lessons: [
+      {
+        id: "py-numpy-arrays",
+        title: "Arrays en NumPy",
+        type: "lesson",
+        theory: `
+# Arrays en NumPy
+
+NumPy ofrece arrays más eficientes que las listas de Python.
+
+## Crear arrays
+\`\`\`python
+import numpy as np
+
+# Desde lista
+arr = np.array([1, 2, 3, 4, 5])
+
+# Arrays de ceros/unos
+np.zeros(5)      # [0, 0, 0, 0, 0]
+np.ones(5)       # [1, 1, 1, 1, 1]
+
+# Rango
+np.arange(0, 10, 2)  # [0, 2, 4, 6, 8]
+np.linspace(0, 1, 5) # [0, 0.25, 0.5, 0.75, 1]
+\`\`\`
+
+## Operaciones
+\`\`\`python
+arr + 1          # Sumar a todos
+arr * 2          # Multiplicar todos
+arr.sum()        # Suma total
+arr.mean()       # Promedio
+arr.max()        # Máximo
+arr.min()        # Mínimo
+\`\`\`
+
+## Indexación
+\`\`\`python
+arr[0]           # Primer elemento
+arr[2:5]         # Del 3ro al 5to
+arr[arr > 3]     # Filtrar > 3
+\`\`\`
+        `,
+        challenge: {
+          title: "Crea y opera con arrays",
+          description: "Crea 'arr' = [1, 2, 3, 4, 5] y 'dobles' = arr * 2",
+          hints: [
+            "Usa np.array([...]) para crear",
+            "Multiplica el array por 2"
+          ],
+          solution: `import numpy as np
+arr = np.array([1, 2, 3, 4, 5])
+dobles = arr * 2`,
+          tests: [
+            { code: "arr[0] == 1", description: "arr[0] debe ser 1" },
+            { code: "arr[4] == 5", description: "arr[4] debe ser 5" },
+            { code: "dobles[0] == 2", description: "dobles[0] debe ser 2" },
+            { code: "dobles[4] == 10", description: "dobles[4] debe ser 10" }
+          ]
+        }
+      },
+      {
+        id: "py-numpy-shape",
+        title: "Shape y Dimensiones",
+        type: "lesson",
+        theory: `
+# Shape y Dimensiones
+
+## Shape (forma)
+\`\`\`python
+arr = np.array([[1, 2, 3], [4, 5, 6]])
+arr.shape  # (2, 3) - 2 filas, 3 columnas
+\`\`\`
+
+## Crear matrices
+\`\`\`python
+# Matriz 2x3
+matriz = np.array([[1, 2, 3], [4, 5, 6]])
+
+# Matriz de ceros/unos
+np.zeros((2, 3))   # 2 filas, 3 columnas de ceros
+np.ones((3, 3))     # Matriz 3x3 de unos
+
+# Matriz identidad
+np.eye(3)           # 3x3 identidad
+\`\`\`
+
+## Operaciones de matrices
+\`\`\`python
+matriz.flatten()    # Aplanar a 1D
+matriz.reshape(6)  # Reformar a 6 elementos
+matriz.T           # Transpuesta
+\`\`\`
+
+## Acceder elementos
+\`\`\`python
+matriz[0, 0]        # Fila 0, columna 0
+matriz[0, :]       # Toda la primera fila
+matriz[:, 1]       # Toda la segunda columna
+\`\`\`
+        `,
+        challenge: {
+          title: "Crea una matriz",
+          description: "Crea 'matriz' 2x2 con [[1, 2], [3, 4]] y 'flattened' = matriz.flatten()",
+          hints: [
+            "Usa np.array([[fila1], [fila2]])",
+            "flatten() convierte a 1D"
+          ],
+          solution: `import numpy as np
+matriz = np.array([[1, 2], [3, 4]])
+flattened = matriz.flatten()`,
+          tests: [
+            { code: "matriz[0, 0] == 1", description: "matriz[0,0] debe ser 1" },
+            { code: "matriz[1, 1] == 4", description: "matriz[1,1] debe ser 4" },
+            { code: "flattened[0] == 1", description: "flattened[0] debe ser 1" },
+            { code: "flattened[3] == 4", description: "flattened[3] debe ser 4" }
+          ]
+        }
+      }
+    ]
+  }
 };
