@@ -487,70 +487,566 @@ for clave, valor in persona.items():
       }
     ]
   },
-  controlFlow: {
-    title: "Control de Flujo",
-    description: "Aprende a controlar el flujo de tu programa",
-    icon: "🔀",
+  strings: {
+    title: "Strings (Texto)",
+    description: "Domina el manejo de texto en Python",
+    icon: "📝",
     lessons: [
       {
-        id: "py-match",
-        title: "Match (Switch)",
+        id: "py-strings-basics",
+        title: "Métodos de Strings",
         type: "lesson",
         theory: `
-# Match en Python
+# Métodos de Strings
 
-Match es como switch/case en otros lenguajes (Python 3.10+).
-
-## Estructura básica
+## Métodos básicos
 \`\`\`python
-dia = "lunes"
+texto = "Hola Mundo"
 
-match dia:
-    case "lunes":
-        print("Inicio de semana")
-    case "viernes":
-        print("¡Por fin viernes!")
-    case "sábado" | "domingo":
-        print("¡Fin de semana!")
-    case _:
-        print("Día no reconocido")
+texto.upper()        # "HOLA MUNDO"
+texto.lower()        # "hola mundo"
+texto.capitalize()   # "Hola mundo"
+texto.title()        # "Hola Mundo"
 \`\`\`
 
-## Con múltiples valores
+## Buscar y reemplazar
 \`\`\`python
-match dia:
-    case "sábado" | "domingo":
-        print("¡Fin de semana!")
+texto = "Hola Mundo"
+texto.find("Mundo")   # 5 (índice)
+texto.replace("Mundo", "Python")  # "Hola Python"
+texto.count("o")      # 2
 \`\`\`
 
-## Usando if
+## Dividir y unir
 \`\`\`python
-match dia:
-    case "lunes" if es_feriado:
-        print("¡Feriado!")
-    case "lunes":
-        print("Lunes normal")
+frase = "Hola,Mundo,Python"
+frase.split(",")      # ["Hola", "Mundo", "Python"]
+
+separadores = ["Hola", "Mundo"]
+"-".join(separadores) # "Hola-Mundo"
+\`\`\`
+
+## strip() - Eliminar espacios
+\`\`\`python
+texto = "  Hola  "
+texto.strip()   # "Hola"
+texto.lstrip()  # "Hola  "
+texto.rstrip() # "  Hola"
+\`\`\`
+
+## f-strings (format strings)
+\`\`\`python
+nombre = "Ana"
+edad = 25
+mensaje = f"Hola, {nombre}. Tienes {edad} años."
+# "Hola, Ana. Tienes 25 años."
 \`\`\`
         `,
         challenge: {
-          title: "Día de la semana",
-          description: "Crea dia = \"martes\". Si es \"lunes\" → \"Inicio\", si es \"viernes\" → \"¡Viernes!\", otros → \"Otro día\"",
+          title: "Manipula strings",
+          description: "Crea 'nombre' = \"juan perez\", luego crea 'resultado' con el nombre capitalizado (title)",
           hints: [
-            "Usa match dia:",
-            "case _ es el caso por defecto",
-            "match es nuevo en Python 3.10+"
+            "Usa el método .title() para capitalizar",
+            "nombre.title() devuelve \"Juan Perez\""
           ],
-          solution: `dia = "martes"
-match dia:
-    case "lunes":
-        mensaje = "Inicio"
-    case "viernes":
-        mensaje = "¡Viernes!"
-    case _:
-        mensaje = "Otro día"`,
+          solution: `nombre = "juan perez"
+resultado = nombre.title()`,
           tests: [
-            { code: "dia == 'martes'", description: "dia debe ser martes" },
-            { code: "mensaje == 'Otro día'", description: "mensaje debe ser 'Otro día'" }
+            { code: "resultado == 'Juan Perez'", description: "resultado debe ser 'Juan Perez'" }
+          ]
+        }
+      },
+      {
+        id: "py-strings-slicing",
+        title: "Slicing de Strings",
+        type: "lesson",
+        theory: `
+# Slicing (Rebanado)
+
+## Sintaxis básica
+\`\`\`python
+texto = "Hola Mundo"
+texto[0]     # "H" (primer carácter)
+texto[-1]    # "o" (último carácter)
+texto[0:4]   # "Hola" (posición 0 a 3)
+\`\`\`
+
+## omitir índices
+\`\`\`python
+texto = "Hola Mundo"
+texto[:4]    # "Hola" (desde el inicio)
+texto[5:]    # "Mundo" (hasta el final)
+texto[:]     # "Hola Mundo" (copia completa)
+\`\`\`
+
+## Con pasos
+\`\`\`python
+texto = "Hola Mundo"
+texto[::2]   # "Hl ud" (cada 2 caracteres)
+texto[::-1]  # "odnuM aloH" (al revés)
+texto[2:7:2] # "aMo" (con paso 2)
+\`\`\`
+
+## Ejemplos prácticos
+\`\`\`python
+extension = "documento.pdf"
+extension[-4:]    # ".pdf"
+
+ip = "192.168.1.1"
+partes = ip.split(".")
+partes[-1]        # "1"
+\`\`\`
+        `,
+        challenge: {
+          title: "Extrae las letras",
+          description: "Crea 'texto' = \"Python\". Crea 'primera' con la primera letra y 'ultima' con la última.",
+          hints: [
+            "texto[0] para la primera letra",
+            "texto[-1] para la última"
+          ],
+          solution: `texto = "Python"
+primera = texto[0]
+ultima = texto[-1]`,
+          tests: [
+            { code: "primera == 'P'", description: "primera debe ser 'P'" },
+            { code: "ultima == 'n'", description: "ultima debe ser 'n'" }
+          ]
+        }
+      }
+    ]
+  },
+  advanced: {
+    title: "Estructuras Avanzadas",
+    description: "Sets, tuples y comprehensions",
+    icon: "🔧",
+    lessons: [
+      {
+        id: "py-sets-tuples",
+        title: "Sets y Tuples",
+        type: "lesson",
+        theory: `
+# Sets y Tuples
+
+## Sets (Conjuntos)
+\`\`\`python
+colores = {"rojo", "verde", "azul"}
+colores.add("amarillo")    # Añadir
+colores.remove("verde")    # Eliminar
+colores | {"negro"}        # Unión
+colores & {"rojo", "azul"} # Intersección
+\`\`\`
+
+## Tuples (Tuplas)
+\`\`\`python
+coordenadas = (10, 20)
+coordenadas[0]     # 10
+x, y = coordenadas  # Desempaquetado
+\`\`\`
+
+## Cuándo usar cada uno
+- **Listas**: Cuando necesitas orden y duplicados
+- **Sets**: Para eliminar duplicados y membership testing
+- **Tuples**: Para datos inmutables (como coordenadas)
+\`\`\`python
+lista = [1, 2, 2, 3]     # [1, 2, 2, 3]
+conjunto = {1, 2, 2, 3}  # {1, 2, 3}
+tupla = (1, 2, 2, 3)    # (1, 2, 2, 3)
+\`\`\`
+        `,
+        challenge: {
+          title: "Trabaja con sets",
+          description: "Crea un set 'frutas' con \"manzana\", \"pera\", \"uva\". Añade \"kiwi\" y elimina \"pera\".",
+          hints: [
+            "Usa .add() para añadir",
+            "Usa .remove() para eliminar"
+          ],
+          solution: `frutas = {"manzana", "pera", "uva"}
+frutas.add("kiwi")
+frutas.remove("pera")`,
+          tests: [
+            { code: "'kiwi' in frutas", description: "kiwi debe estar en el set" },
+            { code: "'pera' not in frutas", description: "pera no debe estar en el set" },
+            { code: "len(frutas) == 3", description: "frutas debe tener 3 elementos" }
+          ]
+        }
+      },
+      {
+        id: "py-comprehensions",
+        title: "List Comprehensions",
+        type: "lesson",
+        theory: `
+# List Comprehensions
+
+## Sintaxis básica
+\`\`\`python
+# Traditional loop
+cuadrados = []
+for i in range(5):
+    cuadrados.append(i ** 2)
+
+# List comprehension
+cuadrados = [i ** 2 for i in range(5)]
+# [0, 1, 4, 9, 16]
+\`\`\`
+
+## Con filtros
+\`\`\`python
+numeros = [1, 2, 3, 4, 5, 6]
+pares = [n for n in numeros if n % 2 == 0]
+# [2, 4, 6]
+\`\`\`
+
+## Comprehensions anidados
+\`\`\`python
+matriz = [[1, 2], [3, 4], [5, 6]]
+plano = [n for fila in matriz for n in fila]
+# [1, 2, 3, 4, 5, 6]
+\`\`\`
+
+## Dictionary comprehension
+\`\`\`python
+nombres = ["Ana", "Bob", "Carlos"]
+longitudes = {nombre: len(nombre) for nombre in nombres}
+# {"Ana": 3, "Bob": 3, "Carlos": 6}
+\`\`\`
+        `,
+        challenge: {
+          title: "Dobla los números",
+          description: "Crea 'numeros' = [1, 2, 3, 4, 5]. Crea 'dobles' con cada número multiplicado por 2.",
+          hints: [
+            "Usa list comprehension: [n * 2 for n in numeros]"
+          ],
+          solution: `numeros = [1, 2, 3, 4, 5]
+dobles = [n * 2 for n in numeros]`,
+          tests: [
+            { code: "dobles == [2, 4, 6, 8, 10]", description: "dobles debe ser [2, 4, 6, 8, 10]" }
+          ]
+        }
+      }
+    ]
+  },
+  errors: {
+    title: "Manejo de Errores",
+    description: "try/except para manejar excepciones",
+    icon: "⚠️",
+    lessons: [
+      {
+        id: "py-try-except",
+        title: "Try/Except",
+        type: "lesson",
+        theory: `
+# Manejo de Errores
+
+## try/except básico
+\`\`\`python
+try:
+    resultado = 10 / 0
+except ZeroDivisionError:
+    print("No se puede dividir entre cero")
+\`\`\`
+
+## Con múltiples except
+\`\`\`python
+try:
+    num = int("hola")
+    resultado = 10 / 0
+except ValueError:
+    print("No es un número válido")
+except ZeroDivisionError:
+    print("División entre cero")
+\`\`\`
+
+## else y finally
+\`\`\`python
+try:
+    numero = int(input("Dame un número: "))
+except ValueError:
+    print("Error: no es un número")
+else:
+    print(f"El número es {numero}")
+finally:
+    print("Gracias por participar")
+\`\`\`
+
+## Capturar la excepción
+\`\`\`python
+try:
+    archivo = open("datos.txt", "r")
+except FileNotFoundError as e:
+    print(f"Archivo no encontrado: {e}")
+\`\`\`
+        `,
+        challenge: {
+          title: "Maneja el error",
+          description: "Envuelve en try/except: divide 10 entre 0, guarda el resultado o \"error\" si falla",
+          hints: [
+            "Usa try:/except ZeroDivisionError:/",
+            "En el except guarda resultado = \"error\""
+          ],
+          solution: `try:
+    resultado = 10 / 0
+except ZeroDivisionError:
+    resultado = "error"`,
+          tests: [
+            { code: "resultado == 'error'", description: "resultado debe ser 'error'" }
+          ]
+        }
+      }
+    ]
+  },
+  modules: {
+    title: "Módulos e Imports",
+    description: "Importa y usa módulos de Python",
+    icon: "📦",
+    lessons: [
+      {
+        id: "py-imports",
+        title: "Importar módulos",
+        type: "lesson",
+        theory: `
+# Módulos e Imports
+
+## Import básico
+\`\`\`python
+import math
+
+math.pi           # 3.14159...
+math.sqrt(16)     # 4.0
+math.floor(3.7)  # 3
+math.ceil(3.2)    # 4
+\`\`\`
+
+## from import
+\`\`\`python
+from math import sqrt, pi
+
+sqrt(16)   # 4.0
+pi         # 3.14159...
+\`\`\`
+
+## Alias
+\`\`\`python
+import numpy as np
+from datetime import datetime as dt
+\`\`\`
+
+## Módulos útiles
+\`\`\`python
+import random
+random.choice([1, 2, 3])     # elemento aleatorio
+random.randint(1, 10)         # número aleatorio 1-10
+
+import datetime
+datetime.datetime.now()      # fecha y hora actual
+\`\`\`
+        `,
+        challenge: {
+          title: "Usa el módulo math",
+          description: "Importa math y calcula: 'raiz' = sqrt(144), 'redondeo' = floor(9.7)",
+          hints: [
+            "from math import sqrt, floor",
+            "sqrt(144) = 12, floor(9.7) = 9"
+          ],
+          solution: `from math import sqrt, floor
+raiz = sqrt(144)
+redondeo = floor(9.7)`,
+          tests: [
+            { code: "raiz == 12", description: "raiz debe ser 12" },
+            { code: "redondeo == 9", description: "redondeo debe ser 9" }
+          ]
+        }
+      }
+    ]
+  },
+  files: {
+    title: "Archivos",
+    description: "Lee y escribe archivos",
+    icon: "📁",
+    lessons: [
+      {
+        id: "py-file-io",
+        title: "Lectura y Escritura",
+        type: "lesson",
+        theory: `
+# Manipulación de Archivos
+
+## Leer archivo
+\`\`\`python
+with open("archivo.txt", "r") as f:
+    contenido = f.read()
+
+# Leer línea por línea
+with open("archivo.txt", "r") as f:
+    lineas = f.readlines()
+\`\`\`
+
+## Escribir archivo
+\`\`\`python
+with open("salida.txt", "w") as f:
+    f.write("Hola mundo\\n")
+    f.write("Segunda línea")
+\`\`\`
+
+## Añadir a archivo
+\`\`\`python
+with open("log.txt", "a") as f:
+    f.write("Nueva entrada\\n")
+\`\`\`
+
+## Ejemplo práctico
+\`\`\`python
+# Contar palabras en archivo
+with open("texto.txt", "r") as f:
+    contenido = f.read()
+    palabras = contenido.split()
+    print(f"Palabras: {len(palabras)}")
+\`\`\`
+        `,
+        challenge: {
+          title: "Escribe y cuenta",
+          description: "El código usa un archivo simulado. Crea 'texto' = \"Hola Python\" y 'longitud' = len(texto)",
+          hints: [
+            "len() cuenta los caracteres",
+            "len(\"Hola Python\") = 11"
+          ],
+          solution: `texto = "Hola Python"
+longitud = len(texto)`,
+          tests: [
+            { code: "texto == 'Hola Python'", description: "texto debe ser 'Hola Python'" },
+            { code: "longitud == 11", description: "longitud debe ser 11" }
+          ]
+        }
+      }
+    ]
+  },
+  oop: {
+    title: "POO Básico",
+    description: "Clases y objetos en Python",
+    icon: "🏗️",
+    lessons: [
+      {
+        id: "py-classes",
+        title: "Clases y Objetos",
+        type: "lesson",
+        theory: `
+# Programación Orientada a Objetos
+
+## Definir una clase
+\`\`\`python
+class Persona:
+    def __init__(self, nombre, edad):
+        self.nombre = nombre
+        self.edad = edad
+    
+    def saludar(self):
+        return f"Hola, soy {self.nombre}"
+
+# Crear objeto
+ana = Persona("Ana", 25)
+print(ana.saludar())  # "Hola, soy Ana"
+\`\`\`
+
+## self
+\`\`\`python
+class Persona:
+    def __init__(self, nombre):
+        self.nombre = nombre
+    
+    def mostrar_nombre(self):
+        return self.nombre
+\`\`\`
+
+## Métodos y atributos
+\`\`\`python
+class Contador:
+    def __init__(self):
+        self.valor = 0
+    
+    def incrementar(self):
+        self.valor += 1
+    
+    def obtener(self):
+        return self.valor
+
+contador = Contador()
+contador.incrementar()
+contador.incrementar()
+contador.obtener()  # 2
+\`\`\`
+        `,
+        challenge: {
+          title: "Crea una clase",
+          description: "Crea una clase 'Calculadora' con método 'sumar(a, b)' que retorne a + b",
+          hints: [
+            "def sumar(self, a, b): return a + b",
+            "No necesitas __init__ para este ejercicio"
+          ],
+          solution: `class Calculadora:
+    def sumar(self, a, b):
+        return a + b
+
+calc = Calculadora()
+resultado = calc.sumar(3, 5)`,
+          tests: [
+            { code: "resultado == 8", description: "resultado debe ser 8" }
+          ]
+        }
+      }
+    ]
+  },
+  functional: {
+    title: "Lambda y Funcional",
+    description: "Lambda, map, filter y más",
+    icon: "⚡",
+    lessons: [
+      {
+        id: "py-lambda",
+        title: "Lambda y Map/Filter",
+        type: "lesson",
+        theory: `
+# Lambda y Programación Funcional
+
+## Lambda (funciones anónimas)
+\`\`\`python
+doble = lambda x: x * 2
+doble(5)  # 10
+
+suma = lambda a, b: a + b
+suma(3, 4)  # 7
+\`\`\`
+
+## map()
+\`\`\`python
+numeros = [1, 2, 3, 4]
+dobles = list(map(lambda x: x * 2, numeros))
+# [2, 4, 6, 8]
+\`\`\`
+
+## filter()
+\`\`\`python
+numeros = [1, 2, 3, 4, 5, 6]
+pares = list(filter(lambda x: x % 2 == 0, numeros))
+# [2, 4, 6]
+\`\`\`
+
+## sorted() con key
+\`\`\`python
+palabras = ["bcd", "a", "abc"]
+ordenadas = sorted(palabras, key=lambda x: len(x))
+# ["a", "bcd", "abc"]
+\`\`\`
+        `,
+        challenge: {
+          title: "Filtra los pares",
+          description: "Crea 'numeros' = [1, 2, 3, 4, 5, 6]. Filtra solo los pares en 'pares' usando filter()",
+          hints: [
+            "filter(lambda x: x % 2 == 0, numeros)",
+            "Convierte a list: list(filter(...))"
+          ],
+          solution: `numeros = [1, 2, 3, 4, 5, 6]
+pares = list(filter(lambda x: x % 2 == 0, numeros))`,
+          tests: [
+            { code: "pares == [2, 4, 6]", description: "pares debe ser [2, 4, 6]" }
           ]
         }
       }
