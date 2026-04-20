@@ -1168,19 +1168,13 @@ body {
   animation: successPop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   box-shadow: var(--shadow-success);
   position: relative;
-  overflow: hidden;
+  overflow: visible;
+  flex-shrink: 0;
+  z-index: 100;
 }
 
 .success-actions::before {
-  content: '';
-  position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  background: var(--gradient-success-glow);
-  animation: gradientShift 4s ease-in-out infinite;
-  background-size: 200% 200%;
+  display: none;
 }
 
 @keyframes successPop {
@@ -1863,4 +1857,18 @@ body {
   .achievement-icon {
     font-size: 32px;
   }
+}
+
+/* Force show success-actions and ensure button is clickable */
+.success-actions {
+  position: relative !important;
+  z-index: 100 !important;
+  overflow: visible !important;
+}
+
+.next-challenge-btn {
+  position: relative !important;
+  z-index: 101 !important;
+  cursor: pointer !important;
+  pointer-events: auto !important;
 }
