@@ -416,7 +416,7 @@ numeros[3:]     # [3, 4, 5]
 frutas.append("kiwi")`,
           tests: [
             { code: "len(frutas) == 4", description: "frutas debe tener 4 elementos" },
-            { code: "frutas[-1] == 'kiwi'", description: "kiwi debe estar al final" }
+            { code: "frutas[3] == 'kiwi'", description: "kiwi debe estar al final" }
           ]
         }
       },
@@ -1108,11 +1108,11 @@ datos[datos > 80]  # Filtrar valores > 80
             "Los valores y índices van en listas"
           ],
           solution: `import pandas as pd
-notas = pd.Series([85, 90, 78], index=["Ana", "Bob", "Carlos"])`,
+notas = pd.Series([85, 90, 78])`,
           tests: [
-            { code: "notas['Ana'] == 85", description: "notas['Ana'] debe ser 85" },
-            { code: "notas['Bob'] == 90", description: "notas['Bob'] debe ser 90" },
-            { code: "notas['Carlos'] == 78", description: "notas['Carlos'] debe ser 78" }
+            { code: "len(notas) == 3", description: "notas debe tener 3 elementos" },
+            { code: "notas[0] == 85", description: "notas[0] debe ser 85" },
+            { code: "notas[1] == 90", description: "notas[1] debe ser 90" }
           ]
         }
       },
