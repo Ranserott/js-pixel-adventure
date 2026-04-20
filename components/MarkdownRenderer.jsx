@@ -1,46 +1,22 @@
 'use client';
 
-import React, { useRef, useEffect } from 'react';
+import React from 'react';
 
-// Simple syntax highlighter for JavaScript
-function highlightJS(code) {
+// Just return code as plain text with some basic formatting
+function formatCode(code) {
   if (!code) return '';
-
-  const keywords = [
-    'const', 'let', 'var', 'function', 'return', 'if', 'else', 'for', 'while',
-    'class', 'extends', 'import', 'export', 'default', 'from', 'new', 'this',
-    'async', 'await', 'try', 'catch', 'throw', 'typeof', 'instanceof',
-    'true', 'false', 'null', 'undefined', 'console', 'log', 'document',
-    'querySelector', 'getElementById', 'addEventListener', 'push', 'map',
-    'filter', 'reduce', 'find', 'some', 'every', 'includes', 'indexOf'
-  ];
-
-  const builtins = ['console', 'document', 'window', 'Math', 'Array', 'Object', 'String', 'Number'];
-
-  let result = code;
-
-  // Strings - handle all quote types properly  
-  result = result.replace(/(`[^`]*`)/g, '<span class="md-string">$1</span>');
-  result = result.replace(/("([^"\\]|\\.)*")/g, '<span class="md-string">$1</span>');
-  result = result.replace(/('([^'\\]|\\.)*')/g, '<span class="md-string">$1</span>');
-
-  // Comments
-  result = result.replace(/(\/\/.*$)/gm, '<span class="md-comment">$1</span>');
-  result = result.replace(/(\/\*[\s\S]*?\*\/)/g, '<span class="md-comment">$1</span>');
-
-  // Keywords
-  result = result.replace(new RegExp(`\\b(${keywords.join('|')})\\b`, 'g'), '<span class="md-keyword">$1</span>');
-
-  // Numbers
-  result = result.replace(/\b(\d+\.?\d*)\b/g, '<span class="md-number">$1</span>');
-
-  // Built-in objects
-  result = result.replace(new RegExp(`\\b(${builtins.join('|')})\\b`, 'g'), '<span class="md-builtin">$1</span>');
-
-  // Function calls
-  result = result.replace(/\b([a-zA-Z_$][\w$]*)\s*\(/g, '<span class="md-function">$1</span>(');
-
-  return result;
+  
+  // Split by lines and preserve whitespace for code display
+  const lines = code.split('\n');
+  
+  return lines.map((line, idx) => {
+    // Add proper indentation
+    const leadingSpaces = line.match(/^(\s*)/)[1];
+    const content = line.trim();
+    
+    // Preserve indentation using non-breaking spaces or pre formatting
+    return content;
+  }).join('\n');
 }
 
 // Parse inline code (backticks)
@@ -54,26 +30,18 @@ function parseListItem(line) {
   return `<li>${parseInlineCode(content)}</li>`;
 }
 
-// Code block component with ref
+// Code block component - renders code without syntax highlighting spans
 function CodeBlock({ code, lang }) {
-  const codeRef = useRef(null);
-  
-  useEffect(() => {
-    if (codeRef.current) {
-      codeRef.current.innerHTML = highlightJS(code);
-    }
-  }, [code]);
-  
   return (
     <div className="md-code-block">
       <div className="md-code-header">
-        <span className="md-code-lang">{lang || 'javascript'}</span>
+        <span className="md-code-lang">{lang || 'code'}</span>
         <div className="md-code-dots">
           <span></span><span></span><span></span>
         </div>
       </div>
       <pre className="md-code-content">
-        <code ref={codeRef} />
+        <code>{code}</code>
       </pre>
     </div>
   );
@@ -96,7 +64,7 @@ export default function MarkdownRenderer({ content }) {
     // Code block start/end
     if (line.trim().startsWith('```')) {
       if (inCodeBlock) {
-        // End code block
+        // End code block - render as plain code (no highlighting to avoid HTML issues)
         elements.push(
           <CodeBlock 
             key={`code-${i}`} 
@@ -127,7 +95,7 @@ export default function MarkdownRenderer({ content }) {
       const text = line.trim().slice(2);
       elements.push(
         <h1 key={`h1-${i}`} className="md-h1">
-          {parseInlineCode(text)}
+          {text}
         </h1>
       );
       i++;
@@ -139,7 +107,7 @@ export default function MarkdownRenderer({ content }) {
       const text = line.trim().slice(3);
       elements.push(
         <h2 key={`h2-${i}`} className="md-h2">
-          {parseInlineCode(text)}
+          {text}
         </h2>
       );
       i++;
@@ -150,7 +118,10 @@ export default function MarkdownRenderer({ content }) {
     if (line.trim().startsWith('- ')) {
       const listItems = [];
       while (i < lines.length && lines[i].trim().startsWith('- ')) {
-        listItems.push(parseListItem(lines[i]));
+        const itemContent = lines[i].trim().slice(2);
+        // Handle inline code in bullet points
+        const processedContent = itemContent.replace(/`([^`]+)`/g, '<code class="md-inline-code">$1</code>');
+        listItems.push(<li key={`li-${i}`} dangerouslySetInnerHTML={{ __html: processedContent }} />);
         i++;
       }
       elements.push(<ul key={`ul-${i}`} className="md-list">{listItems}</ul>);
@@ -177,10 +148,10 @@ export default function MarkdownRenderer({ content }) {
     }
     if (paraLines.length > 0) {
       const text = paraLines.join(' ').trim();
+      // Handle inline code in paragraphs
+      const processedText = text.replace(/`([^`]+)`/g, '<code class="md-inline-code">$1</code>');
       elements.push(
-        <p key={`p-${i}`} className="md-paragraph">
-          {parseInlineCode(text)}
-        </p>
+        <p key={`p-${i}`} className="md-paragraph" dangerouslySetInnerHTML={{ __html: processedText }} />
       );
     }
   }
