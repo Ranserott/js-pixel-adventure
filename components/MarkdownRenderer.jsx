@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 
 // Simple syntax highlighter for JavaScript
 function highlightJS(code) {
@@ -17,14 +17,12 @@ function highlightJS(code) {
 
   const builtins = ['console', 'document', 'window', 'Math', 'Array', 'Object', 'String', 'Number'];
 
-  // DO STRING REPLACEMENT BEFORE ANY HTML ESCAPING
-  // Since we're inside <pre> tags, we don't need to escape HTML inside code blocks
-  // The browser will handle rendering
-  
   let result = code;
 
-  // Strings - capture original quotes and keep them
-  result = result.replace(/(['"`])((?:\\.|(?!\1)[^\\])*?)\1/g, '<span class="md-string">$&</span>');
+  // Strings - handle all quote types properly  
+  result = result.replace(/(`[^`]*`)/g, '<span class="md-string">$1</span>');
+  result = result.replace(/("([^"\\]|\\.)*")/g, '<span class="md-string">$1</span>');
+  result = result.replace(/('([^'\\]|\\.)*')/g, '<span class="md-string">$1</span>');
 
   // Comments
   result = result.replace(/(\/\/.*$)/gm, '<span class="md-comment">$1</span>');
@@ -56,6 +54,31 @@ function parseListItem(line) {
   return `<li>${parseInlineCode(content)}</li>`;
 }
 
+// Code block component with ref
+function CodeBlock({ code, lang }) {
+  const codeRef = useRef(null);
+  
+  useEffect(() => {
+    if (codeRef.current) {
+      codeRef.current.innerHTML = highlightJS(code);
+    }
+  }, [code]);
+  
+  return (
+    <div className="md-code-block">
+      <div className="md-code-header">
+        <span className="md-code-lang">{lang || 'javascript'}</span>
+        <div className="md-code-dots">
+          <span></span><span></span><span></span>
+        </div>
+      </div>
+      <pre className="md-code-content">
+        <code ref={codeRef} />
+      </pre>
+    </div>
+  );
+}
+
 // Main parser function
 export default function MarkdownRenderer({ content }) {
   if (!content) return null;
@@ -75,19 +98,11 @@ export default function MarkdownRenderer({ content }) {
       if (inCodeBlock) {
         // End code block
         elements.push(
-          <div key={`code-${i}`} className="md-code-block">
-            <div className="md-code-header">
-              <span className="md-code-lang">{codeBlockLang || 'javascript'}</span>
-              <div className="md-code-dots">
-                <span></span><span></span><span></span>
-              </div>
-            </div>
-            <pre className="md-code-content">
-              <code
-                dangerouslySetInnerHTML={{ __html: highlightJS(codeBlockContent.join('\n')) }}
-              />
-            </pre>
-          </div>
+          <CodeBlock 
+            key={`code-${i}`} 
+            code={codeBlockContent.join('\n')} 
+            lang={codeBlockLang} 
+          />
         );
         codeBlockContent = [];
         codeBlockLang = '';
