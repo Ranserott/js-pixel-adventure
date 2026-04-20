@@ -1,16 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { curriculum } from '../../data/curriculum';
-import { curriculumPython } from '../../data/curriculum-python';
+import { useRouter } from 'next/navigation';
 
 export default function LangSelect() {
+  const router = useRouter();
   const [hovered, setHovered] = useState(null);
   const [particles, setParticles] = useState([]);
 
   useEffect(() => {
-    // Generate floating particles
     const chars = ['{ }', '( )', '[ ]', '< >', '=>', '++', '&&', '||', '::', '###', '>>>', '---'];
     const newParticles = Array.from({ length: 20 }, (_, i) => ({
       id: i,
@@ -23,6 +21,10 @@ export default function LangSelect() {
     setParticles(newParticles);
   }, []);
 
+  const navigateTo = (path) => {
+    router.push(path);
+  };
+
   const languages = [
     {
       id: 'javascript',
@@ -31,8 +33,8 @@ export default function LangSelect() {
       color: '#f7df1e',
       secondaryColor: '#323330',
       description: 'Domina el lenguaje de la web',
-      lessons: Object.values(curriculum).reduce((acc, m) => acc + (m.lessons?.length || 0), 0),
-      href: '/',
+      lessons: 9,
+      path: '/',
       features: ['ES6+ moderno', 'DOM manipulation', 'Async/Await']
     },
     {
@@ -42,15 +44,14 @@ export default function LangSelect() {
       color: '#3776ab',
       secondaryColor: '#ffd43b',
       description: 'El poder de la simplicidad',
-      lessons: Object.values(curriculumPython).reduce((acc, m) => acc + (m.lessons?.length || 0), 0),
-      href: '/python',
+      lessons: 9,
+      path: '/python',
       features: ['Sintaxis limpia', 'Data Science', 'IA/ML']
     }
   ];
 
   return (
     <div className="lang-select-container">
-      {/* Floating particles background */}
       <div className="particles">
         {particles.map(p => (
           <span 
@@ -68,18 +69,15 @@ export default function LangSelect() {
         ))}
       </div>
 
-      {/* Glowing orbs */}
       <div className="orb orb-1"></div>
       <div className="orb orb-2"></div>
 
       <div className="lang-select-content">
-        {/* Logo */}
         <div className="logo-section">
           <span className="logo-icon">🚀</span>
           <span className="logo-text">AprendeCódigo</span>
         </div>
 
-        {/* Title */}
         <h1 className="lang-select-title">
           <span className="title-prefix">DESAFIO:</span>
           <span className="title-sub">Elige tu camino</span>
@@ -89,52 +87,44 @@ export default function LangSelect() {
           Selecciona un lenguaje y comienza tu viaje de aprendizaje
         </p>
 
-        {/* Language Cards */}
         <div className="lang-cards">
           {languages.map((lang) => (
-            <Link 
-              href={lang.href} 
+            <button 
               key={lang.id}
               className={`lang-card ${hovered === lang.id ? 'hovered' : ''}`}
               style={{ '--lang-color': lang.color, '--lang-secondary': lang.secondaryColor }}
               onMouseEnter={() => setHovered(lang.id)}
               onMouseLeave={() => setHovered(null)}
+              onClick={() => navigateTo(lang.path)}
+              data-lang={lang.id}
+              data-path={lang.path}
             >
-              {/* Background gradient */}
               <div className="card-bg"></div>
               
-              {/* Icon */}
               <div className="card-icon-wrapper">
                 <span className="card-icon">{lang.icon}</span>
               </div>
 
-              {/* Content */}
               <h2 className="card-title">{lang.name}</h2>
               <p className="card-description">{lang.description}</p>
 
-              {/* Features */}
               <div className="card-features">
                 {lang.features.map((f, i) => (
                   <span key={i} className="feature-tag">{f}</span>
                 ))}
               </div>
 
-              {/* Lessons count */}
               <div className="card-lessons">
                 <span className="lessons-icon">📚</span>
                 <span>{lang.lessons} lecciones</span>
               </div>
 
-              {/* Arrow */}
               <div className="card-arrow">→</div>
-
-              {/* Hover shine effect */}
               <div className="card-shine"></div>
-            </Link>
+            </button>
           ))}
         </div>
 
-        {/* Footer */}
         <div className="lang-footer">
           <p>🎯 Aprende jugando, completa desafíos y domina nuevos lenguajes</p>
         </div>
@@ -151,7 +141,6 @@ export default function LangSelect() {
           justify-content: center;
         }
 
-        /* Floating particles */
         .particles {
           position: absolute;
           inset: 0;
@@ -184,7 +173,6 @@ export default function LangSelect() {
           }
         }
 
-        /* Glowing orbs */
         .orb {
           position: absolute;
           border-radius: 50%;
@@ -224,7 +212,6 @@ export default function LangSelect() {
           z-index: 1;
         }
 
-        /* Logo */
         .logo-section {
           display: flex;
           align-items: center;
@@ -252,7 +239,6 @@ export default function LangSelect() {
           background-clip: text;
         }
 
-        /* Title */
         .lang-select-title {
           display: flex;
           flex-direction: column;
@@ -289,7 +275,6 @@ export default function LangSelect() {
           margin-bottom: 56px;
         }
 
-        /* Cards */
         .lang-cards {
           display: grid;
           grid-template-columns: repeat(2, 1fr);
@@ -307,11 +292,12 @@ export default function LangSelect() {
           transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
           position: relative;
           overflow: hidden;
-          text-decoration: none;
           color: inherit;
           display: flex;
           flex-direction: column;
           align-items: center;
+          font-family: inherit;
+          width: 100%;
         }
 
         .card-bg {
@@ -438,7 +424,6 @@ export default function LangSelect() {
           transform: translateY(-50%) translateX(8px);
         }
 
-        /* Footer */
         .lang-footer {
           margin-top: 16px;
         }
@@ -448,7 +433,6 @@ export default function LangSelect() {
           color: rgba(255, 255, 255, 0.4);
         }
 
-        /* Responsive */
         @media (max-width: 768px) {
           .title-prefix {
             font-size: 48px;
