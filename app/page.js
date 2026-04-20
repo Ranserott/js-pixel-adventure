@@ -376,12 +376,6 @@ export default function Home() {
               <div className="theory-content">
                 <pre>{currentLesson.theory}</pre>
               </div>
-              
-              {currentLesson.challenge && (
-                <button className="start-challenge-btn" onClick={goToChallenge}>
-                  💻 Ir al Desafío →
-                </button>
-              )}
             </div>
           )}
 
