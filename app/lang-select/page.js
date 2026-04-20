@@ -34,7 +34,7 @@ export default function LangSelect() {
       secondaryColor: '#323330',
       description: 'Domina el lenguaje de la web',
       lessons: 9,
-      path: '/',
+      path: '/javascript',
       features: ['ES6+ moderno', 'DOM manipulation', 'Async/Await']
     },
     {
