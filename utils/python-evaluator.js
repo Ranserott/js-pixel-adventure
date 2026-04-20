@@ -1,6 +1,5 @@
 /**
  * Evaluador simple para Python (simula validación en el cliente)
- * Nota: Este es un evaluador básico. Para producción se necesitaría un backend.
  */
 
 export function analyzePythonStructure(code) {
@@ -31,98 +30,160 @@ export function runPythonCode(userCode, level, onProgress) {
   };
   
   // Parse Python-like code to extract variables
-  // Este es un evaluador simplificado que entiende la estructura básica de Python
-  
   const extractedVars = {};
   
-  // Extraer asignaciones simples: variable = valor
-  const assignmentRegex = /^(\w+)\s*=\s*(.+)$/gm;
-  let match;
-  while ((match = assignmentRegex.exec(userCode)) !== null) {
-    const varName = match[1];
-    let value = match[2].trim();
+  // Split by lines and process each
+  const lines = userCode.split('\n');
+  
+  for (const line of lines) {
+    // Skip empty lines and comments
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
     
-    // Remover comentarios
-    value = value.split('#')[0].trim();
-    
-    // Procesar diferentes tipos de valores
-    if (value === 'True' || value === 'False') {
-      extractedVars[varName] = value === 'True';
-    } else if (value.startsWith('"') || value.startsWith("'")) {
-      // String
-      extractedVars[varName] = value.slice(1, -1);
-    } else if (!isNaN(value) || value === 'None') {
-      // Number or None
-      extractedVars[varName] = value === 'None' ? null : Number(value);
-    } else if (value.includes('[') && value.includes(']')) {
-      // List
-      try {
-        extractedVars[varName] = eval(value);
-      } catch {
-        extractedVars[varName] = value;
-      }
-    } else if (value.includes('{') && value.includes('}')) {
-      // Dict or Set
-      try {
-        extractedVars[varName] = eval(value);
-      } catch {
-        extractedVars[varName] = value;
-      }
-    } else {
-      // Intentamos evaluar expresiones simples
-      try {
-        extractedVars[varName] = Function('"use strict"; return (' + value + ')')();
-      } catch {
+    // Match variable assignment: name = value
+    // Handle both simple and complex values
+    const assignMatch = trimmed.match(/^(\w+)\s*=\s*(.+)$/);
+    if (assignMatch) {
+      const varName = assignMatch[1];
+      let value = assignMatch[2].trim();
+      
+      // Remove trailing semicolon if present
+      value = value.replace(/;$/, '').trim();
+      
+      // Remove inline comments
+      value = value.split('#')[0].trim();
+      
+      // Process different types of values
+      if (value === 'True' || value === 'False') {
+        extractedVars[varName] = value === 'True';
+      } else if (value === 'None') {
+        extractedVars[varName] = null;
+      } else if ((value.startsWith('"') && value.endsWith('"')) || 
+                 (value.startsWith("'") && value.endsWith("'"))) {
+        // String - remove quotes
+        extractedVars[varName] = value.slice(1, -1);
+      } else if (value.startsWith('f"') || value.startsWith("f'")) {
+        // f-string - remove f and quotes
+        extractedVars[varName] = value.slice(2, -1);
+      } else if (value.startsWith('[') && value.endsWith(']')) {
+        // List
+        try {
+          extractedVars[varName] = JSON.parse(value.replace(/'/g, '"'));
+        } catch {
+          extractedVars[varName] = value;
+        }
+      } else if (value.startsWith('{') && value.endsWith('}')) {
+        // Dict or Set
+        try {
+          extractedVars[varName] = JSON.parse(value.replace(/'/g, '"'));
+        } catch {
+          extractedVars[varName] = value;
+        }
+      } else if (!isNaN(value)) {
+        // Number
+        extractedVars[varName] = Number(value);
+      } else if (value.includes('+') || value.includes('*') || value.includes('-')) {
+        // Expression - try to evaluate
+        try {
+          // Simple numeric expressions
+          const expr = value.replace(/\s/g, '');
+          if (/^[\d\.\+\*\/\-\(\)]+$/.test(expr)) {
+            extractedVars[varName] = Function('"use strict"; return (' + value + ')')();
+          } else {
+            extractedVars[varName] = value;
+          }
+        } catch {
+          extractedVars[varName] = value;
+        }
+      } else {
         extractedVars[varName] = value;
       }
     }
+    
+    // Match function definition
+    const funcMatch = trimmed.match(/^def\s+(\w+)\s*\(/);
+    if (funcMatch) {
+      extractedVars[funcMatch[1]] = { type: 'function', name: funcMatch[1] };
+    }
+    
+    // Match class definition
+    const classMatch = trimmed.match(/^class\s+(\w+)/);
+    if (classMatch) {
+      extractedVars[classMatch[1]] = { type: 'class', name: classMatch[1] };
+    }
+    
+    // Match lambda
+    const lambdaMatch = trimmed.match(/^(\w+)\s*=\s*lambda\s+/);
+    if (lambdaMatch) {
+      extractedVars[lambdaMatch[1]] = { type: 'function', name: lambdaMatch[1] };
+    }
   }
   
-  // También buscar definiciones de funciones
-  const funcRegex = /def\s+(\w+)\s*\([^)]*\)\s*:/g;
-  while ((match = funcRegex.exec(userCode)) !== null) {
-    extractedVars[match[1]] = { type: 'function', name: match[1] };
-  }
-  
-  // También buscar clases
-  const classRegex = /class\s+(\w+)\s*[\(:]/g;
-  while ((match = classRegex.exec(userCode)) !== null) {
-    extractedVars[match[1]] = { type: 'class', name: match[1] };
-  }
-  
-  // Evaluar cada test
+  // Now evaluate each test
   for (const test of level.challenge.tests) {
+    let passed = false;
+    const testCode = test.code.trim();
+    
     try {
-      let passed = false;
-      const testCode = test.code;
-      
       // Test: isinstance(x, str/int/float/bool/list/dict/set/tuple)
       const isinstanceMatch = testCode.match(/isinstance\s*\(\s*(\w+)\s*,\s*(\w+)\s*\)/);
       if (isinstanceMatch) {
         const varName = isinstanceMatch[1];
         const expectedType = isinstanceMatch[2];
-        const actualType = Array.isArray(extractedVars[varName]) ? 'list' :
-                          extractedVars[varName] === null ? 'NoneType' :
-                          typeof extractedVars[varName];
-        passed = actualType === expectedType || 
-                 (expectedType === 'int' && actualType === 'number') ||
-                 (expectedType === 'str' && actualType === 'string');
+        const actualVal = extractedVars[varName];
+        
+        if (actualVal !== undefined) {
+          const actualType = Array.isArray(actualVal) ? 'list' :
+                            actualVal === null ? 'NoneType' :
+                            typeof actualVal === 'object' ? (actualVal.type || 'dict') :
+                            typeof actualVal;
+          
+          passed = (expectedType === 'int' && actualType === 'number') ||
+                   (expectedType === 'str' && actualType === 'string') ||
+                   actualType === expectedType;
+        }
       }
-      // Test: 'variable' in dir() o 'variable' in locals()
+      // Test: 'variable' in dir() or 'variable' in locals()
       else if (testCode.includes('in dir()') || testCode.includes('in locals()')) {
         const varMatch = testCode.match(/'(\w+)'/);
         if (varMatch) {
-          passed = varName in extractedVars || extractedVars.hasOwnProperty(varMatch[1]);
+          passed = varMatch[1] in extractedVars;
         }
       }
-      // Test: x == value
+      // Test: x == value (strict equality for Python)
       else if (testCode.includes('==') && !testCode.includes('===')) {
         const parts = testCode.split('==');
         if (parts.length === 2) {
           const left = parts[0].trim();
-          const right = parts[1].trim().replace(/;/g, '');
-          const leftVal = extractedVars[left] !== undefined ? extractedVars[left] : left;
-          const rightVal = eval(right);
+          const right = parts[1].trim().replace(/;$/, '').trim();
+          
+          // Get left value
+          let leftVal;
+          if (left in extractedVars) {
+            leftVal = extractedVars[left];
+          } else if (left === 'True' || left === 'False' || left === 'None') {
+            leftVal = left === 'True' ? true : left === 'False' ? false : null;
+          } else if (!isNaN(left)) {
+            leftVal = Number(left);
+          } else {
+            leftVal = left.replace(/['"]/g, '');
+          }
+          
+          // Get right value - handle different types
+          let rightVal;
+          if (right === 'True' || right === 'False' || right === 'None') {
+            rightVal = right === 'True' ? true : right === 'False' ? false : null;
+          } else if (right.startsWith("'") || right.startsWith('"')) {
+            rightVal = right.slice(1, -1);
+          } else if (!isNaN(right)) {
+            rightVal = Number(right);
+          } else if (right in extractedVars) {
+            rightVal = extractedVars[right];
+          } else {
+            rightVal = right.replace(/['"]/g, '');
+          }
+          
+          // Compare
           passed = leftVal == rightVal;
         }
       }
@@ -134,8 +195,8 @@ export function runPythonCode(userCode, level, onProgress) {
           passed = extractedVars[varName]?.type === 'function';
         }
       }
-      // Test: x in set/list/etc
-      else if (testCode.includes(' in ')) {
+      // Test: x in y
+      else if (testCode.includes(' in ') && !testCode.includes('not in')) {
         const inMatch = testCode.match(/'(\w+)'\s+in\s+(\w+)/);
         if (inMatch) {
           const element = inMatch[1];
@@ -146,6 +207,9 @@ export function runPythonCode(userCode, level, onProgress) {
             passed = extractedVars[collection].includes(element);
           }
         }
+      }
+      // Test: x not in y
+      else if (testCode.includes('not in')) {
         const notInMatch = testCode.match(/'(\w+)'\s+not\s+in\s+(\w+)/);
         if (notInMatch) {
           const element = notInMatch[1];
@@ -165,6 +229,7 @@ export function runPythonCode(userCode, level, onProgress) {
           const operator = lenMatch[2];
           const expected = parseInt(lenMatch[3]);
           const actual = extractedVars[varName]?.length ?? -1;
+          
           if (operator === '==') passed = actual === expected;
           else if (operator === '>=') passed = actual >= expected;
           else if (operator === '<=') passed = actual <= expected;
@@ -172,35 +237,37 @@ export function runPythonCode(userCode, level, onProgress) {
           else if (operator === '<') passed = actual < expected;
         }
       }
-      // Test: directamente evaluar la expresión
+      // Test: directly evaluate the expression
       else {
-        // Crear un contexto con las variables extraídas
-        const contextVars = Object.entries(extractedVars)
+        // Create context with extracted variables
+        const contextParts = Object.entries(extractedVars)
           .filter(([k]) => !['type', 'name'].includes(k))
-          .map(([k, v]) => `${typeof v === 'string' ? 'var ' : 'var '}${k}=${JSON.stringify(v)}`)
-          .join(';');
+          .map(([k, v]) => {
+            if (typeof v === 'string') return `var ${k}="${v.replace(/"/g, '\\"')}"`;
+            if (v === null) return `var ${k}=null`;
+            if (typeof v === 'boolean') return `var ${k}=${v}`;
+            if (typeof v === 'number') return `var ${k}=${v}`;
+            if (Array.isArray(v)) return `var ${k}=${JSON.stringify(v)}`;
+            return `var ${k}="${String(v).replace(/"/g, '\\"')}"`;
+          });
         
         try {
-          const testFn = new Function(`${contextVars}; return (${testCode.replace(/;/g, '')});`);
+          const testFn = new Function(contextParts.join(';') + '; return (' + testCode.replace(/;/g, '') + ');');
           passed = Boolean(testFn());
-        } catch {
+        } catch (e) {
           passed = false;
         }
       }
       
-      results.push({
-        description: test.description,
-        passed: Boolean(passed),
-        message: passed ? '✅ Correcto' : `❌ Incorrecto: ${test.description}`
-      });
-      
     } catch (e) {
-      results.push({
-        description: test.description,
-        passed: false,
-        message: `❌ Error: ${e.message}`
-      });
+      passed = false;
     }
+    
+    results.push({
+      description: test.description,
+      passed: Boolean(passed),
+      message: passed ? '✅ Correcto' : `❌ Incorrecto: ${test.description}`
+    });
   }
   
   const allPassed = results.length > 0 && results.every(r => r.passed);
