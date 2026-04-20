@@ -15,6 +15,10 @@ export function runPythonCode(userCode, level, onProgress) {
     return { success: false, error: 'Nivel sin tests', testResults: [] };
   }
   
+  // Debug log for development
+  console.log('runPythonCode called with code:', userCode);
+  console.log('Tests:', level.challenge.tests);
+  
   const analysis = analyzePythonStructure(userCode);
   if (!analysis.isValid) {
     return { success: false, error: analysis.issues[0], testResults: [] };
