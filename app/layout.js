@@ -1,8 +1,8 @@
 import './globals.css';
 
 export const metadata = {
-  title: 'JavaScript Aprender - Aprende JS paso a paso',
-  description: 'Aprende JavaScript desde cero con lecciones interactivas y desafíos prácticos',
+  title: 'Aprende Código - JavaScript y Python',
+  description: 'Aprende JavaScript y Python desde cero con lecciones interactivas y desafíos prácticos',
 };
 
 export default function RootLayout({ children }) {
