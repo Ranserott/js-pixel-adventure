@@ -29,11 +29,14 @@ export function runPythonCode(userCode, level, onProgress) {
     if (onProgress) onProgress({ type: 'console', text });
   };
   
-  // Parse Python code to extract variables
-  const extractedVars = {};
+  // Parse Python code - two pass system
+  // Pass 1: collect all variable assignments as strings
+  // Pass 2: evaluate expressions using all known variables
   
+  const varExpressions = {};
   const lines = userCode.split('\n');
   
+  // Pass 1: collect all variable assignments
   for (const line of lines) {
     const trimmed = line.trim();
     if (!trimmed || trimmed.startsWith('#')) continue;
@@ -49,52 +52,7 @@ export function runPythonCode(userCode, level, onProgress) {
       value = value.replace(/;$/, '').trim();
       value = value.split('#')[0].trim();
       
-      if (value === 'True' || value === 'False') {
-        extractedVars[varName] = value === 'True';
-      } else if (value === 'None') {
-        extractedVars[varName] = null;
-      } else if ((value.startsWith('"') && value.endsWith('"')) || 
-                 (value.startsWith("'") && value.endsWith("'"))) {
-        extractedVars[varName] = value.slice(1, -1);
-      } else if (value.startsWith('f"') || value.startsWith("f'") || value.startsWith('f"""')) {
-        extractedVars[varName] = value.slice(value.indexOf('"') + 1, -1);
-      } else if (value.startsWith('[') && value.endsWith(']')) {
-        try {
-          extractedVars[varName] = JSON.parse(value.replace(/'/g, '"'));
-        } catch {
-          extractedVars[varName] = value;
-        }
-      } else if (value.startsWith('{') && value.endsWith('}')) {
-        if (value.includes(':')) {
-          try {
-            extractedVars[varName] = JSON.parse(value.replace(/'/g, '"'));
-          } catch {
-            extractedVars[varName] = value;
-          }
-        } else {
-          try {
-            const setItems = value.slice(1, -1).split(',').map(s => s.trim().replace(/['"]/g, ''));
-            extractedVars[varName] = new Set(setItems);
-          } catch {
-            extractedVars[varName] = value;
-          }
-        }
-      } else if (!isNaN(value)) {
-        extractedVars[varName] = Number(value);
-      } else if (value.includes('+') || value.includes('*') || value.includes('-') || value.includes('/')) {
-        try {
-          const expr = value.replace(/\s/g, '');
-          if (/^[\d\.\+\*\/\-\(\)]+$/.test(expr)) {
-            extractedVars[varName] = Function('"use strict"; return (' + value + ')')();
-          } else {
-            extractedVars[varName] = value;
-          }
-        } catch {
-          extractedVars[varName] = value;
-        }
-      } else {
-        extractedVars[varName] = value;
-      }
+      varExpressions[varName] = value;
     }
     
     // Match function definition
@@ -102,20 +60,155 @@ export function runPythonCode(userCode, level, onProgress) {
     if (funcMatch) {
       const funcName = funcMatch[1];
       const params = funcMatch[2].split(',').map(p => p.trim()).filter(p => p);
-      extractedVars[funcName] = { type: 'function', name: funcName, params };
+      varExpressions[funcName] = { type: 'function', name: funcName, params };
     }
     
     // Match lambda assignment
     const lambdaMatch = trimmed.match(/^(\w+)\s*=\s*lambda\s+(.+)$/);
     if (lambdaMatch) {
-      extractedVars[lambdaMatch[1]] = { type: 'function', name: lambdaMatch[1] };
+      varExpressions[lambdaMatch[1]] = { type: 'function', name: lambdaMatch[1] };
     }
     
     // Match class definition
     const classMatch = trimmed.match(/^class\s+(\w+)/);
     if (classMatch) {
-      extractedVars[classMatch[1]] = { type: 'class', name: classMatch[1] };
+      varExpressions[classMatch[1]] = { type: 'class', name: classMatch[1] };
     }
+  }
+  
+  // Helper function to evaluate an expression with all variables available
+  function evaluateExpr(expr, knownVars) {
+    if (expr === 'True') return true;
+    if (expr === 'False') return false;
+    if (expr === 'None') return null;
+    
+    // String literal
+    if ((expr.startsWith('"') && expr.endsWith('"')) || 
+        (expr.startsWith("'") && expr.endsWith("'"))) {
+      return expr.slice(1, -1);
+    }
+    
+    // f-string (take raw value for now)
+    if (expr.startsWith('f"') || expr.startsWith("f'") || expr.startsWith('f"""')) {
+      return expr.slice(expr.indexOf('"') + 1, -1);
+    }
+    
+    // List
+    if (expr.startsWith('[') && expr.endsWith(']')) {
+      try {
+        return JSON.parse(expr.replace(/'/g, '"'));
+      } catch {
+        return expr;
+      }
+    }
+    
+    // Dict
+    if (expr.startsWith('{') && expr.endsWith('}')) {
+      if (expr.includes(':')) {
+        try {
+          return JSON.parse(expr.replace(/'/g, '"'));
+        } catch {
+          return expr;
+        }
+      } else {
+        // Set
+        try {
+          const setItems = expr.slice(1, -1).split(',').map(s => s.trim().replace(/['"]/g, ''));
+          return new Set(setItems);
+        } catch {
+          return expr;
+        }
+      }
+    }
+    
+    // Number
+    if (!isNaN(expr)) {
+      return parseFloat(expr);
+    }
+    
+    // Expression with operators - try to evaluate with known variables
+    if (expr.includes('+') || expr.includes('*') || expr.includes('-') || expr.includes('/')) {
+      let evalExpr = expr;
+      const varRefs = evalExpr.match(/[a-zA-Z_][a-zA-Z0-9_]*/g) || [];
+      const uniqueVars = [...new Set(varRefs)];
+      
+      // Replace each variable with its value
+      let canEvaluate = true;
+      for (const v of uniqueVars) {
+        if (v in knownVars && typeof knownVars[v] !== 'object') {
+          const replacement = typeof knownVars[v] === 'string' 
+            ? `"${knownVars[v]}"` 
+            : String(knownVars[v]);
+          evalExpr = evalExpr.replace(new RegExp('\\b' + v + '\\b', 'g'), replacement);
+        } else if (v === 'True' || v === 'False' || v === 'None') {
+          // These are keywords, not variables
+        } else {
+          canEvaluate = false;
+          break;
+        }
+      }
+      
+      if (canEvaluate) {
+        // Validate the expression is safe (no remaining letters except keywords)
+        const safeCheck = evalExpr.replace(/[\d\s\.\+\*\/\-\(\)\"\']+/g, '');
+        const keywordsOk = safeCheck.replace(/\b(True|False|None)\b/g, '') === '';
+        if (keywordsOk) {
+          try {
+            return Function('"use strict"; return (' + evalExpr + ')')();
+          } catch {
+            return expr;
+          }
+        }
+      }
+    }
+    
+    // If it's a variable reference, return the variable value
+    if (expr in knownVars) {
+      return knownVars[expr];
+    }
+    
+    return expr;
+  }
+  
+  // Pass 2: evaluate all expressions with two passes to handle dependencies
+  const extractedVars = {};
+  
+  // Multiple passes until no changes (handles chained dependencies)
+  let changed = true;
+  let iterations = 0;
+  const maxIterations = 10;
+  
+  while (changed && iterations < maxIterations) {
+    changed = false;
+    iterations++;
+    
+    for (const [varName, expr] of Object.entries(varExpressions)) {
+      // Skip if already processed as non-expression
+      if (extractedVars[varName] !== undefined && typeof extractedVars[varName] !== 'string') {
+        continue;
+      }
+      
+      const result = evaluateExpr(expr, extractedVars);
+      
+      // Only update if we got a better result (not just the string expr)
+      if (result !== expr || typeof extractedVars[varName] === 'undefined') {
+        if (typeof result !== 'string' || 
+            (result !== expr && !result.includes('+' && result.includes('*'))) ||
+            typeof extractedVars[varName] === 'undefined') {
+          extractedVars[varName] = result;
+          changed = true;
+        } else if (typeof expr === 'string' && expr in extractedVars) {
+          extractedVars[varName] = extractedVars[expr];
+          changed = true;
+        }
+      }
+    }
+  }
+  
+  // Handle index assignments (e.g., df['col'] = value)
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
     
     // Match index assignment: var[key] = value or var[i, j] = value
     const indexAssignMatch = trimmed.match(/^(\w+)\s*\[\s*(.+?)\s*\]\s*=\s*(.+)$/);
@@ -125,14 +218,8 @@ export function runPythonCode(userCode, level, onProgress) {
       const value = indexAssignMatch[3].trim().split('#')[0].trim();
       
       if (varName in extractedVars) {
-        let val = value;
-        if (value === 'True' || value === 'False') val = value === 'True';
-        else if (value === 'None') val = null;
-        else if ((value.startsWith("'") && value.endsWith("'")) || 
-                 (value.startsWith('"') && value.endsWith('"'))) val = value.slice(1, -1);
-        else if (!isNaN(value)) val = Number(value);
+        let val = evaluateExpr(value, extractedVars);
         
-        // Handle 2D indexing like [0, 0]
         if (indexStr.includes(',')) {
           const [row, col] = indexStr.split(',').map(s => parseInt(s.trim()));
           if (Array.isArray(extractedVars[varName]) && extractedVars[varName][row]) {
@@ -157,8 +244,7 @@ export function runPythonCode(userCode, level, onProgress) {
     const testCode = test.code.trim();
     
     try {
-      // Test: var['key'] or var["key"] (dict/series key access) - must check BEFORE array index
-      // Pattern: variable['key'] == value or variable["key"] == value
+      // Test: var['key'] or var["key"] (dict/series key access)
       const dictKeyMatch = testCode.match(/^(\w+)\s*\[\s*['"](\w+)['"]\s*\]\s*(==|!=)\s*(.+)/);
       if (dictKeyMatch) {
         const varName = dictKeyMatch[1];
@@ -177,20 +263,16 @@ export function runPythonCode(userCode, level, onProgress) {
             actualVal = actualVal[idx];
           }
           
-          // Parse expected value
+          const exp = evaluateExpr(expectedVal, extractedVars);
+          
           if (operator === '==' || operator === '===') {
-            if (typeof actualVal === 'number') {
-              passed = actualVal == parseFloat(expectedVal.replace(/['"]/g, ''));
-            } else if (typeof actualVal === 'string') {
-              const expStr = expectedVal.replace(/['"]/g, '');
-              passed = actualVal === expStr;
-            } else if (typeof actualVal === 'boolean') {
-              passed = actualVal === (expectedVal === 'True') || actualVal === (expectedVal === 'true');
+            if (typeof actualVal === 'number' && typeof exp === 'number') {
+              passed = actualVal == exp;
             } else {
-              passed = actualVal == expectedVal || String(actualVal) === expectedVal.replace(/['"]/g, '');
+              passed = actualVal == exp || String(actualVal) === String(exp);
             }
           } else {
-            passed = actualVal != expectedVal;
+            passed = actualVal != exp;
           }
         }
         results.push({ description: test.description, passed, message: passed ? '✅ Correcto' : `❌ Incorrecto: ${test.description}` });
@@ -209,22 +291,23 @@ export function runPythonCode(userCode, level, onProgress) {
         const matrix = extractedVars[varName];
         if (matrix && Array.isArray(matrix) && matrix[row] && matrix[row][col] !== undefined) {
           const actualVal = matrix[row][col];
+          const exp = evaluateExpr(expectedVal, extractedVars);
           
           if (operator === '==' || operator === '===') {
-            if (typeof actualVal === 'number') {
-              passed = actualVal == parseFloat(expectedVal.replace(/['"]/g, ''));
+            if (typeof actualVal === 'number' && typeof exp === 'number') {
+              passed = actualVal == exp;
             } else {
-              passed = actualVal == expectedVal.replace(/['"]/g, '') || String(actualVal) === expectedVal.replace(/['"]/g, '');
+              passed = actualVal == exp || String(actualVal) === String(exp);
             }
           } else {
-            passed = actualVal != expectedVal.replace(/['"]/g, '');
+            passed = actualVal != exp;
           }
         }
         results.push({ description: test.description, passed, message: passed ? '✅ Correcto' : `❌ Incorrecto: ${test.description}` });
         continue;
       }
       
-      // Test: var[index] == value (array/list/string index access) - numeric only
+      // Test: var[index] == value (array/list/string index access)
       const arrayMatch = testCode.match(/^(\w+)\s*\[\s*(-?\d+)\s*\]\s*(==|!=)\s*(.+)/);
       if (arrayMatch) {
         const varName = arrayMatch[1];
@@ -234,7 +317,6 @@ export function runPythonCode(userCode, level, onProgress) {
         
         const arr = extractedVars[varName];
         if (arr && (Array.isArray(arr) || typeof arr === 'string')) {
-          // Handle negative index
           let actualVal;
           if (index < 0 && Array.isArray(arr)) {
             actualVal = arr[arr.length + index];
@@ -244,14 +326,16 @@ export function runPythonCode(userCode, level, onProgress) {
             actualVal = arr[index];
           }
           
+          const exp = evaluateExpr(expectedVal, extractedVars);
+          
           if (operator === '==' || operator === '===') {
-            if (typeof actualVal === 'number') {
-              passed = actualVal == parseFloat(expectedVal.replace(/['"]/g, ''));
+            if (typeof actualVal === 'number' && typeof exp === 'number') {
+              passed = actualVal == exp;
             } else {
-              passed = actualVal == expectedVal.replace(/['"]/g, '') || String(actualVal) === expectedVal.replace(/['"]/g, '');
+              passed = actualVal == exp || String(actualVal) === String(exp);
             }
           } else {
-            passed = actualVal != expectedVal.replace(/['"]/g, '');
+            passed = actualVal != exp;
           }
         }
         results.push({ description: test.description, passed, message: passed ? '✅ Correcto' : `❌ Incorrecto: ${test.description}` });
@@ -305,17 +389,12 @@ export function runPythonCode(userCode, level, onProgress) {
         continue;
       }
       
-      // Test: func(args) == value (function call)
+      // Test: func(args) == value
       const funcCallMatch = testCode.match(/^(\w+)\s*\(\s*([^)]*)\s*\)\s*(==|!=)\s*(.+)/);
       if (funcCallMatch && !testCode.includes('isinstance')) {
         const funcName = funcCallMatch[1];
-        const argsStr = funcCallMatch[2];
-        const operator = funcCallMatch[3];
-        let expectedVal = funcCallMatch[4].replace(/;$/, '').trim();
-        
         const func = extractedVars[funcName];
         if (func && func.type === 'function') {
-          // For now, just check if function exists
           passed = func.type === 'function';
         }
         results.push({ description: test.description, passed, message: passed ? '✅ Correcto' : `❌ Incorrecto: ${test.description}` });
@@ -389,19 +468,7 @@ export function runPythonCode(userCode, level, onProgress) {
         
         const actualVal = extractedVars[varName];
         if (actualVal !== undefined) {
-          // Parse expected value
-          let exp;
-          if (expectedVal === 'True') exp = true;
-          else if (expectedVal === 'False') exp = false;
-          else if (expectedVal === 'None') exp = null;
-          else if ((expectedVal.startsWith("'") && expectedVal.endsWith("'")) || 
-                   (expectedVal.startsWith('"') && expectedVal.endsWith('"'))) {
-            exp = expectedVal.slice(1, -1);
-          } else if (!isNaN(expectedVal)) {
-            exp = parseFloat(expectedVal);
-          } else {
-            exp = expectedVal.replace(/['"]/g, '');
-          }
+          const exp = evaluateExpr(expectedVal, extractedVars);
           
           if (operator === '==' || operator === '===') {
             if (typeof actualVal === 'number' && typeof exp === 'number') {
