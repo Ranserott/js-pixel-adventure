@@ -142,9 +142,23 @@ export function runPythonCode(userCode, level, onProgress) {
                             typeof actualVal === 'object' ? (actualVal.type || 'dict') :
                             typeof actualVal;
           
-          passed = (expectedType === 'int' && actualType === 'number') ||
-                   (expectedType === 'str' && actualType === 'string') ||
-                   actualType === expectedType;
+          // Map Python types to JS types
+          const typeMap = {
+            'int': 'number',
+            'float': 'number',
+            'str': 'string',
+            'string': 'string',
+            'bool': 'boolean',
+            'boolean': 'boolean',
+            'list': 'array',
+            'dict': 'object',
+            'set': 'object',
+            'tuple': 'object'
+          };
+          
+          const mappedExpected = typeMap[expectedType] || expectedType;
+          
+          passed = actualType === mappedExpected;
         }
       }
       // Test: 'variable' in dir() or 'variable' in locals()
