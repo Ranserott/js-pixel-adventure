@@ -7,6 +7,7 @@ import { runCode, analyzeCodeStructure, getLevelHint, getMotivationalMessage } f
 import CodeEditor from '../components/CodeEditor';
 import AchievementsPanel from '../components/AchievementsPanel';
 import FeedbackAnimation from '../components/FeedbackAnimation';
+import MarkdownRenderer from '../components/MarkdownRenderer';
 
 export default function Home() {
   const [view, setView] = useState('home');
@@ -374,7 +375,7 @@ export default function Home() {
           {activeTab === 'theory' && (
             <div className="theory-panel">
               <div className="theory-content">
-                <pre>{currentLesson.theory}</pre>
+                <MarkdownRenderer content={currentLesson.theory} />
               </div>
             </div>
           )}
