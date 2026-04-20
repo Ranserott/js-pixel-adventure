@@ -10,7 +10,7 @@ import FeedbackAnimation from '../components/FeedbackAnimation';
 import MarkdownRenderer from '../components/MarkdownRenderer';
 
 export default function Home() {
-  const [view, setView] = useState('home');
+  const [view, setView] = useState('lang-select');
   const [currentModule, setCurrentModule] = useState(null);
   const [currentLesson, setCurrentLesson] = useState(null);
   const [code, setCode] = useState('');
