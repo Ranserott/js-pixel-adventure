@@ -427,6 +427,20 @@ export default function JavaScriptCourse() {
                   </div>
                 )}
 
+                <div className="help-section">
+                  <button 
+                    className="solution-btn" 
+                    onClick={() => setShowSolution(!showSolution)}
+                  >
+                    👁️ {showSolution ? 'Ocultar' : 'Ver'} Solución
+                  </button>
+                  {showSolution && currentLesson.challenge.solution && (
+                    <div className="solution-code">
+                      <pre>{currentLesson.challenge.solution}</pre>
+                    </div>
+                  )}
+                </div>
+
                 {testResults.length > 0 && testResults.every(t => t.passed) && (
                   <div className="success-actions">
                     <div className="success-message-box">
@@ -440,19 +454,6 @@ export default function JavaScriptCourse() {
                     >
                       🚀 Siguiente Desafío
                     </button>
-                    {!showSolution && (
-                      <button 
-                        className="solution-btn"
-                        onClick={() => setShowSolution(true)}
-                      >
-                        📝 Mostrar solución
-                      </button>
-                    )}
-                    {showSolution && (
-                      <div className="solution-code">
-                        <pre>{currentLesson.challenge.solution}</pre>
-                      </div>
-                    )}
                   </div>
                 )}
               </div>
